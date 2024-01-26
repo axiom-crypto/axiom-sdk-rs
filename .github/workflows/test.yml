@@ -16,5 +16,5 @@ jobs:
           cargo build --verbose
       - name: Test rust client
         run: |
-            export PROVIDER_URI=${{ secrets.PROVIDER_URI_GOERLI }}
-            cargo test
+          export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
+          cargo test
