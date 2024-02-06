@@ -57,7 +57,7 @@ impl AxiomComputeFn for QuickstartInput {
         let _mapping_val = mapping.key(HiLo::from_hi_lo(key));
 
         // fetch transaction data, example is for the transaction below:
-        // https://goerli.etherscan.io/tx/0xa4f781ad033d6dab5b13e3ab7c7cbdbd0ea4c0a2be3d9ffa7ed1e53d2d5bcc46
+        // https://sepolia.etherscan.io/tx/0xf518bd931eae8dc4178e1f8a3b64d6312af33f8c5df0c2cd4a38b72f4fb2d7dc
         // get the 4-byte function selector that was called
         let _function_selector = api
             .get_tx(assigned_inputs.tx_block_number, assigned_inputs.tx_idx)
@@ -69,11 +69,11 @@ impl AxiomComputeFn for QuickstartInput {
             .calldata(calldata_idx);
 
         // fetch receipt data, example is for the first event log in the transaction below
-        // Deposit (index_topic_1 address payor, uint256 amt)
-        // https://goerli.etherscan.io/tx/0xa4f781ad033d6dab5b13e3ab7c7cbdbd0ea4c0a2be3d9ffa7ed1e53d2d5bcc46
-        // eventSchema = keccak(Deposit(address,uint256))
+        // Transfer (index_topic_1 address from, index_topic_2 address to, uint256 tokens)
+        // https://sepolia.etherscan.io/tx/0xf518bd931eae8dc4178e1f8a3b64d6312af33f8c5df0c2cd4a38b72f4fb2d7dc#eventlog
+        // eventSchema = keccak(Transfer(address,address,uint256))
         let event_schema =
-            H256::from_str("0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c")
+            H256::from_str("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
                 .unwrap();
         let log_idx = api.ctx().load_constant(Fr::from(0));
         let topic_idx = api.ctx().load_constant(Fr::from(1));
