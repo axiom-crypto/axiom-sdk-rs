@@ -13,7 +13,6 @@ use axiom_query::axiom_eth::{
         SerdeFormat,
     },
     halo2curves::bn256::{Fr, G1Affine},
-    rlc::virtual_region::RlcThreadBreakPoints,
     snark_verifier_sdk::{halo2::gen_snark_shplonk, Snark},
     utils::keccak::decorator::RlcKeccakCircuitParams,
 };
@@ -24,7 +23,7 @@ use ethers::{
 
 use crate::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
-    types::{AxiomCircuitParams, AxiomV2CircuitOutput},
+    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
     utils::build_axiom_v2_compute_query,
 };
 
@@ -52,7 +51,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
-    RlcThreadBreakPoints,
+    AxiomCircuitPinning,
 ) {
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     let params = gen_srs(circuit_params.k() as u32);
@@ -61,7 +60,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
         runner.calculate_params();
     }
     let vk = keygen_vk(&params, &runner).expect("Failed to generate vk");
-    let breakpoints = runner.break_points();
+    let pinning = runner.pinning();
     let path = Path::new("data/vk.bin");
     if let Some(parent) = path.parent() {
         create_dir_all(parent).expect("Failed to create data directory");
@@ -74,20 +73,18 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let mut pk_file = File::create(path).expect("Failed to create pk file");
     pk.write(&mut pk_file, SerdeFormat::Processed)
         .expect("Failed to write pk");
-    (vk, pk, breakpoints)
+    (vk, pk, pinning)
 }
 
 pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     provider: Provider<P>,
-    raw_circuit_params: AxiomCircuitParams,
+    pinning: AxiomCircuitPinning,
     inputs: Option<S::InputValue>,
     pk: ProvingKey<G1Affine>,
-    break_points: RlcThreadBreakPoints,
 ) -> Snark {
-    let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
+    let circuit_params = RlcKeccakCircuitParams::from(pinning.params.clone());
     let params = gen_srs(circuit_params.k() as u32);
-    let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
-    runner.set_break_points(break_points);
+    let mut runner = AxiomCircuit::<_, _, S>::from_pinning(provider, pinning).use_inputs(inputs);
     if circuit_params.keccak_rows_per_round > 0 {
         runner.calculate_params();
     }
@@ -96,22 +93,21 @@ pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 
 pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     provider: Provider<P>,
-    raw_circuit_params: AxiomCircuitParams,
+    pinning: AxiomCircuitPinning,
     inputs: Option<S::InputValue>,
     pk: ProvingKey<G1Affine>,
-    break_points: RlcThreadBreakPoints,
 ) -> AxiomV2CircuitOutput {
-    let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
+    let circuit_params = RlcKeccakCircuitParams::from(pinning.params.clone());
     let k = circuit_params.k();
     let params = gen_srs(k as u32);
     let mut runner =
-        AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params.clone()).use_inputs(inputs);
-    runner.set_break_points(break_points);
+        AxiomCircuit::<_, _, S>::from_pinning(provider, pinning.clone()).use_inputs(inputs);
     let output = runner.scaffold_output();
     if circuit_params.keccak_rows_per_round > 0 {
         runner.calculate_params();
     }
     let snark = gen_snark_shplonk(&params, &pk, runner, None::<&str>);
+    let raw_circuit_params = pinning.params.clone();
     let compute_query = match raw_circuit_params {
         AxiomCircuitParams::Base(_) => {
             build_axiom_v2_compute_query(snark.clone(), raw_circuit_params, output.clone())

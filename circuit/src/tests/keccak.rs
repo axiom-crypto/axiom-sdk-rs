@@ -119,8 +119,8 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_keccak_test_params();
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
-    let (_, pk, break_points) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let snark = prove::<_, S>(client, params, None, pk, break_points);
+    let (_, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
+    let snark = prove::<_, S>(client, pinning, None, pk);
     agg_circuit_mock(agg_circuit_params, snark);
 }
 
@@ -138,8 +138,8 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circui
     let num_user_output_fe = runner.output_num_instances();
     let subquery_fe = runner.subquery_num_instances();
     let results = runner.scaffold_output();
-    let (_, pk, break_points) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let snark = prove::<_, S>(client, params, None, pk, break_points);
+    let (_, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
+    let snark = prove::<_, S>(client, pinning, None, pk);
     let agg_circuit =
         create_aggregation_circuit(agg_circuit_params, snark.clone(), CircuitBuilderStage::Mock);
     let instances = agg_circuit.instances();
@@ -163,8 +163,8 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_keccak_test_params();
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
-    let (_vk, pk, break_points) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let output = run::<_, S>(client, params.clone(), None, pk, break_points);
+    let (_vk, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
+    let output = run::<_, S>(client, pinning, None, pk);
     let (agg_vk, agg_pk, agg_break_points) =
         agg_circuit_keygen(agg_circuit_params, output.snark.clone());
     let final_output = agg_circuit_run(

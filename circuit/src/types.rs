@@ -1,13 +1,16 @@
 use axiom_codec::types::native::AxiomV2ComputeQuery;
 use axiom_query::axiom_eth::{
     halo2_base::gates::circuit::{BaseCircuitParams, BaseConfig},
-    rlc::circuit::{RlcCircuitParams, RlcConfig},
+    rlc::{
+        circuit::{RlcCircuitParams, RlcConfig},
+        virtual_region::RlcThreadBreakPoints,
+    },
     snark_verifier_sdk::Snark,
     utils::keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
     Field,
 };
 use ethers::types::H256;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::subquery::types::Subquery;
 
@@ -18,7 +21,7 @@ pub enum AxiomCircuitConfig<F: Field> {
     Keccak(RlcKeccakConfig<F>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AxiomCircuitParams {
     Base(BaseCircuitParams),
     Rlc(RlcCircuitParams),
@@ -29,6 +32,12 @@ impl Default for AxiomCircuitParams {
     fn default() -> Self {
         Self::Base(BaseCircuitParams::default())
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AxiomCircuitPinning {
+    pub params: AxiomCircuitParams,
+    pub breakpoints: RlcThreadBreakPoints,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]

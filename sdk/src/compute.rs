@@ -11,7 +11,7 @@ use axiom_circuit::{
         },
         halo2_proofs::plonk::{ProvingKey, VerifyingKey},
         halo2curves::bn256::G1Affine,
-        rlc::{circuit::builder::RlcCircuitBuilder, virtual_region::RlcThreadBreakPoints},
+        rlc::circuit::builder::RlcCircuitBuilder,
         snark_verifier_sdk::Snark,
         utils::hilo::HiLo,
     },
@@ -19,7 +19,7 @@ use axiom_circuit::{
     run::inner::{keygen, mock, prove, run},
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     subquery::caller::SubqueryCaller,
-    types::{AxiomCircuitParams, AxiomV2CircuitOutput},
+    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
     utils::to_hi_lo,
 };
 use ethers::providers::{Http, Provider};
@@ -45,6 +45,7 @@ pub trait AxiomComputeFn: AxiomComputeInput {
 pub struct AxiomCompute<A: AxiomComputeFn> {
     provider: Option<Provider<Http>>,
     params: Option<BaseCircuitParams>,
+    pinning: Option<AxiomCircuitPinning>,
     input: Option<A::LogicInput>,
 }
 
@@ -54,6 +55,7 @@ impl<A: AxiomComputeFn> Default for AxiomCompute<A> {
             provider: None,
             params: None,
             input: None,
+            pinning: None,
         }
     }
 }
@@ -107,6 +109,10 @@ where
         self.input = Some(input);
     }
 
+    pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning) {
+        self.pinning = Some(pinning);
+    }
+
     pub fn use_provider(mut self, provider: Provider<Http>) -> Self {
         self.set_provider(provider);
         self
@@ -122,9 +128,14 @@ where
         self
     }
 
+    pub fn use_pinning(mut self, pinning: AxiomCircuitPinning) -> Self {
+        self.set_pinning(pinning);
+        self
+    }
+
     fn check_all_set(&self) {
         assert!(self.provider.is_some());
-        assert!(self.params.is_some());
+        assert!(self.pinning.is_some());
         assert!(self.input.is_some());
     }
 
@@ -146,7 +157,7 @@ where
     ) -> (
         VerifyingKey<G1Affine>,
         ProvingKey<G1Affine>,
-        RlcThreadBreakPoints,
+        AxiomCircuitPinning,
     ) {
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
@@ -154,36 +165,18 @@ where
         keygen::<Http, Self>(provider, AxiomCircuitParams::Base(params), None)
     }
 
-    pub fn prove(&self, pk: ProvingKey<G1Affine>, break_points: RlcThreadBreakPoints) -> Snark {
+    pub fn prove(&self, pk: ProvingKey<G1Affine>) -> Snark {
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
-        let params = self.params.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        prove::<Http, Self>(
-            provider,
-            AxiomCircuitParams::Base(params),
-            converted_input,
-            pk,
-            break_points,
-        )
+        prove::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
     }
 
-    pub fn run(
-        &self,
-        pk: ProvingKey<G1Affine>,
-        break_points: RlcThreadBreakPoints,
-    ) -> AxiomV2CircuitOutput {
+    pub fn run(&self, pk: ProvingKey<G1Affine>) -> AxiomV2CircuitOutput {
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
-        let params = self.params.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        run::<Http, Self>(
-            provider,
-            AxiomCircuitParams::Base(params),
-            converted_input,
-            pk,
-            break_points,
-        )
+        run::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
     }
 
     pub fn circuit(&self) -> AxiomCircuit<Fr, Http, Self> {

@@ -11,14 +11,14 @@ use axiom_circuit::{
         halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
         halo2_proofs::{plonk::ProvingKey, SerdeFormat},
         halo2curves::bn256::G1Affine,
-        rlc::virtual_region::RlcThreadBreakPoints,
     },
     scaffold::AxiomCircuit,
-    types::AxiomCircuitParams,
+    types::AxiomCircuitPinning,
 };
 pub use clap::Parser;
 use clap::Subcommand;
 use ethers::providers::{Http, Provider};
+use log::warn;
 
 use crate::{
     compute::{AxiomCompute, AxiomComputeFn},
@@ -55,7 +55,7 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: SnarkCmd,
     #[arg(short = 'k', long = "degree")]
-    pub degree: u32,
+    pub degree: Option<u32>,
     #[arg(short = 'p', long = "provider")]
     pub provider: Option<String>,
     #[arg(short, long = "input")]
@@ -78,6 +78,18 @@ where
         }
         _ => {}
     }
+    match cli.command {
+        SnarkCmd::Mock | SnarkCmd::Keygen => {
+            if cli.degree.is_none() {
+                panic!("The `degree` argument is required for the selected command.");
+            }
+        }
+        _ => {
+            if cli.degree.is_some() {
+                warn!("The `degree` argument is not used for the selected command.");
+            }
+        }
+    }
     let input_path = cli.input_path.unwrap();
     let json_str = fs::read_to_string(input_path).expect("Unable to read file");
     let input: A::LogicInput = serde_json::from_str(&json_str).expect("Unable to parse JSON");
@@ -90,16 +102,16 @@ where
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
 
-    let params = BaseCircuitParams {
-        k: 12,
-        num_advice_per_phase: vec![4],
-        num_fixed: 1,
-        num_lookup_advice_per_phase: vec![1],
-        lookup_bits: Some(11),
-        num_instance_columns: 1,
-    };
     match cli.command {
         SnarkCmd::Mock => {
+            let params = BaseCircuitParams {
+                k: cli.degree.unwrap() as usize,
+                num_advice_per_phase: vec![4],
+                num_fixed: 1,
+                num_lookup_advice_per_phase: vec![1],
+                lookup_bits: Some(11),
+                num_instance_columns: 1,
+            };
             AxiomCompute::<A>::new()
                 .use_inputs(input)
                 .use_params(params)
@@ -107,73 +119,80 @@ where
                 .mock();
         }
         SnarkCmd::Keygen => {
+            let params = BaseCircuitParams {
+                k: cli.degree.unwrap() as usize,
+                num_advice_per_phase: vec![4],
+                num_fixed: 1,
+                num_lookup_advice_per_phase: vec![1],
+                lookup_bits: Some(11),
+                num_instance_columns: 1,
+            };
             let circuit = AxiomCompute::<A>::new()
-                .use_params(params)
+                .use_params(params.clone())
                 .use_provider(provider);
-            let (vkey, pkey, breakpoints) = circuit.keygen();
+            let (_, pkey, pinning) = circuit.keygen();
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
             if pk_path.exists() {
                 fs::remove_file(&pk_path).unwrap();
             }
-            let vk_path = data_path.join(PathBuf::from("vk.bin"));
-            if vk_path.exists() {
-                fs::remove_file(&vk_path).unwrap();
-            }
-            let f = File::create(&vk_path)
-                .unwrap_or_else(|_| panic!("Could not create file at {vk_path:?}"));
-            let mut writer = BufWriter::new(f);
-            vkey.write(&mut writer, SerdeFormat::RawBytes)
-                .expect("writing vkey should not fail");
-
             let f = File::create(&pk_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {pk_path:?}"));
             let mut writer = BufWriter::new(f);
             pkey.write(&mut writer, SerdeFormat::RawBytes)
                 .expect("writing pkey should not fail");
+            // let vk_path = data_path.join(PathBuf::from("vk.bin"));
+            // if vk_path.exists() {
+            //     fs::remove_file(&vk_path).unwrap();
+            // }
+            // let f = File::create(&vk_path)
+            //     .unwrap_or_else(|_| panic!("Could not create file at {vk_path:?}"));
+            // let mut writer = BufWriter::new(f);
+            // vkey.write(&mut writer, SerdeFormat::RawBytes)
+            //     .expect("writing vkey should not fail");
 
-            let breakpoints_path = data_path.join(PathBuf::from("breakpoints.json"));
-            if breakpoints_path.exists() {
-                fs::remove_file(&breakpoints_path).unwrap();
+            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
+            if pinning_path.exists() {
+                fs::remove_file(&pinning_path).unwrap();
             }
-            let f = File::create(&breakpoints_path)
-                .unwrap_or_else(|_| panic!("Could not create file at {breakpoints_path:?}"));
+            let f = File::create(&pinning_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
             let mut writer = BufWriter::new(f);
-            serde_json::to_writer_pretty(&mut writer, &breakpoints)
-                .expect("writing breakpoints should not fail");
+            serde_json::to_writer_pretty(&mut writer, &pinning)
+                .expect("writing circuit pinning should not fail");
         }
         SnarkCmd::Prove => {
+            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
+            let f = File::open(&pinning_path).unwrap();
+            let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
             let compute = AxiomCompute::<A>::new()
-                .use_params(params.clone())
+                .use_pinning(pinning.clone())
                 .use_provider(provider);
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
             let mut f = File::open(&pk_path).unwrap();
             let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
                 &mut f,
                 SerdeFormat::RawBytes,
-                AxiomCircuitParams::Base(params),
+                pinning.params,
             )
             .unwrap();
-            let breakpoints_path = data_path.join(PathBuf::from("breakpoints.json"));
-            let f = File::open(&breakpoints_path).unwrap();
-            let breakpoints: RlcThreadBreakPoints = serde_json::from_reader(f).unwrap();
-            compute.use_inputs(input).prove(pk, breakpoints);
+            compute.use_inputs(input).prove(pk);
         }
         SnarkCmd::Run => {
+            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
+            let f = File::open(&pinning_path).unwrap();
+            let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
             let compute = AxiomCompute::<A>::new()
-                .use_params(params.clone())
+                .use_pinning(pinning.clone())
                 .use_provider(provider);
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
             let mut f = File::open(&pk_path).unwrap();
             let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
                 &mut f,
                 SerdeFormat::RawBytes,
-                AxiomCircuitParams::Base(params),
+                pinning.params,
             )
             .unwrap();
-            let breakpoints_path = data_path.join(PathBuf::from("breakpoints.json"));
-            let f = File::open(&breakpoints_path).unwrap();
-            let breakpoints: RlcThreadBreakPoints = serde_json::from_reader(f).unwrap();
-            compute.use_inputs(input).run(pk, breakpoints);
+            compute.use_inputs(input).run(pk);
         }
     }
 }

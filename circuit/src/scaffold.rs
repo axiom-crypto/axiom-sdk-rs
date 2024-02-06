@@ -52,7 +52,7 @@ use itertools::Itertools;
 use crate::{
     input::flatten::InputFlatten,
     subquery::caller::SubqueryCaller,
-    types::{AxiomCircuitConfig, AxiomCircuitParams, AxiomV2DataAndResults},
+    types::{AxiomCircuitConfig, AxiomCircuitParams, AxiomCircuitPinning, AxiomV2DataAndResults},
 };
 
 pub trait AxiomCircuitScaffold<P: JsonRpcClient, F: Field>: Default + Clone + Debug {
@@ -95,6 +95,12 @@ pub struct AxiomCircuit<F: Field, P: JsonRpcClient, A: AxiomCircuitScaffold<P, F
 impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCircuit<F, P, A> {
     pub fn new(provider: Provider<P>, circuit_params: AxiomCircuitParams) -> Self {
         Self::from_stage(provider, circuit_params, CircuitBuilderStage::Mock)
+    }
+
+    pub fn from_pinning(provider: Provider<P>, pinning: AxiomCircuitPinning) -> Self {
+        let mut circuit = Self::from_stage(provider, pinning.params, CircuitBuilderStage::Prover);
+        circuit.set_break_points(pinning.breakpoints);
+        circuit
     }
 
     pub fn from_stage(
@@ -176,6 +182,16 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         self
     }
 
+    pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning) {
+        self.set_params(pinning.params);
+        self.set_break_points(pinning.breakpoints);
+    }
+
+    pub fn use_pinning(mut self, pinning: AxiomCircuitPinning) -> Self {
+        self.set_pinning(pinning);
+        self
+    }
+
     pub fn set_provider(&mut self, provider: Provider<P>) {
         self.provider = provider;
     }
@@ -195,6 +211,13 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             }
         } else {
             self.builder.borrow().break_points()
+        }
+    }
+
+    pub fn pinning(&self) -> AxiomCircuitPinning {
+        AxiomCircuitPinning {
+            params: self.params(),
+            breakpoints: self.break_points(),
         }
     }
 
