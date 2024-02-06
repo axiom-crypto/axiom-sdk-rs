@@ -11,7 +11,7 @@ use axiom_client::{
         },
         halo2_proofs::plonk::{ProvingKey, VerifyingKey},
         halo2curves::bn256::G1Affine,
-        rlc::circuit::builder::RlcCircuitBuilder,
+        rlc::{circuit::builder::RlcCircuitBuilder, virtual_region::RlcThreadBreakPoints},
         snark_verifier_sdk::Snark,
         utils::hilo::HiLo,
     },
@@ -141,14 +141,20 @@ where
         mock::<Http, Self>(provider, AxiomCircuitParams::Base(params), converted_input);
     }
 
-    pub fn keygen(&self) -> (VerifyingKey<G1Affine>, ProvingKey<G1Affine>) {
+    pub fn keygen(
+        &self,
+    ) -> (
+        VerifyingKey<G1Affine>,
+        ProvingKey<G1Affine>,
+        RlcThreadBreakPoints,
+    ) {
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
         keygen::<Http, Self>(provider, AxiomCircuitParams::Base(params), None)
     }
 
-    pub fn prove(&self, pk: ProvingKey<G1Affine>) -> Snark {
+    pub fn prove(&self, pk: ProvingKey<G1Affine>, break_points: RlcThreadBreakPoints) -> Snark {
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
@@ -158,10 +164,15 @@ where
             AxiomCircuitParams::Base(params),
             converted_input,
             pk,
+            break_points,
         )
     }
 
-    pub fn run(&self, pk: ProvingKey<G1Affine>) -> AxiomV2CircuitOutput {
+    pub fn run(
+        &self,
+        pk: ProvingKey<G1Affine>,
+        break_points: RlcThreadBreakPoints,
+    ) -> AxiomV2CircuitOutput {
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
@@ -171,6 +182,7 @@ where
             AxiomCircuitParams::Base(params),
             converted_input,
             pk,
+            break_points,
         )
     }
 

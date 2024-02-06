@@ -186,7 +186,16 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
     }
 
     pub fn break_points(&self) -> RlcThreadBreakPoints {
-        self.builder.borrow().break_points()
+        let rlc_params = self.builder.borrow().params();
+        if rlc_params.num_rlc_columns == 0 {
+            let break_points = self.builder.borrow().base.break_points();
+            RlcThreadBreakPoints {
+                base: break_points,
+                rlc: vec![],
+            }
+        } else {
+            self.builder.borrow().break_points()
+        }
     }
 
     pub fn k(&self) -> usize {

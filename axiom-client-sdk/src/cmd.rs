@@ -1,6 +1,21 @@
-use std::{env, fmt::Debug, fs, path::PathBuf};
+use std::{
+    env,
+    fmt::Debug,
+    fs::{self, File},
+    io::BufWriter,
+    path::PathBuf,
+};
 
-use axiom_client::axiom_eth::halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue};
+use axiom_client::{
+    axiom_eth::{
+        halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
+        halo2_proofs::{plonk::ProvingKey, SerdeFormat},
+        halo2curves::bn256::G1Affine,
+        rlc::virtual_region::RlcThreadBreakPoints,
+    },
+    scaffold::AxiomCircuit,
+    types::AxiomCircuitParams,
+};
 pub use clap::Parser;
 use clap::Subcommand;
 use ethers::providers::{Http, Provider};
@@ -45,6 +60,8 @@ pub struct Cli {
     pub provider: Option<String>,
     #[arg(short, long = "input")]
     pub input_path: Option<PathBuf>,
+    #[arg(short, long = "data-path")]
+    pub data_path: Option<PathBuf>,
 }
 
 pub fn run_cli<A: AxiomComputeFn>()
@@ -71,6 +88,7 @@ where
         .provider
         .unwrap_or_else(|| env::var("PROVIDER_URI").unwrap());
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
+    let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
 
     let params = BaseCircuitParams {
         k: 12,
@@ -89,24 +107,73 @@ where
                 .mock();
         }
         SnarkCmd::Keygen => {
-            AxiomCompute::<A>::new()
+            let circuit = AxiomCompute::<A>::new()
                 .use_params(params)
-                .use_provider(provider)
-                .keygen();
+                .use_provider(provider);
+            let (vkey, pkey, breakpoints) = circuit.keygen();
+            let pk_path = data_path.join(PathBuf::from("pk.bin"));
+            if pk_path.exists() {
+                fs::remove_file(&pk_path).unwrap();
+            }
+            let vk_path = data_path.join(PathBuf::from("vk.bin"));
+            if vk_path.exists() {
+                fs::remove_file(&vk_path).unwrap();
+            }
+            let f = File::create(&vk_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {vk_path:?}"));
+            let mut writer = BufWriter::new(f);
+            vkey.write(&mut writer, SerdeFormat::RawBytes)
+                .expect("writing vkey should not fail");
+
+            let f = File::create(&pk_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {pk_path:?}"));
+            let mut writer = BufWriter::new(f);
+            pkey.write(&mut writer, SerdeFormat::RawBytes)
+                .expect("writing pkey should not fail");
+
+            let breakpoints_path = data_path.join(PathBuf::from("breakpoints.json"));
+            if breakpoints_path.exists() {
+                fs::remove_file(&breakpoints_path).unwrap();
+            }
+            let f = File::create(&breakpoints_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {breakpoints_path:?}"));
+            let mut writer = BufWriter::new(f);
+            serde_json::to_writer_pretty(&mut writer, &breakpoints)
+                .expect("writing breakpoints should not fail");
         }
         SnarkCmd::Prove => {
             let compute = AxiomCompute::<A>::new()
-                .use_params(params)
+                .use_params(params.clone())
                 .use_provider(provider);
-            let (_vk, pk) = compute.keygen();
-            compute.use_inputs(input).prove(pk);
+            let pk_path = data_path.join(PathBuf::from("pk.bin"));
+            let mut f = File::open(&pk_path).unwrap();
+            let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
+                &mut f,
+                SerdeFormat::RawBytes,
+                AxiomCircuitParams::Base(params),
+            )
+            .unwrap();
+            let breakpoints_path = data_path.join(PathBuf::from("breakpoints.json"));
+            let f = File::open(&breakpoints_path).unwrap();
+            let breakpoints: RlcThreadBreakPoints = serde_json::from_reader(f).unwrap();
+            compute.use_inputs(input).prove(pk, breakpoints);
         }
         SnarkCmd::Run => {
             let compute = AxiomCompute::<A>::new()
-                .use_params(params)
+                .use_params(params.clone())
                 .use_provider(provider);
-            let (_vk, pk) = compute.keygen();
-            compute.use_inputs(input).run(pk);
+            let pk_path = data_path.join(PathBuf::from("pk.bin"));
+            let mut f = File::open(&pk_path).unwrap();
+            let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
+                &mut f,
+                SerdeFormat::RawBytes,
+                AxiomCircuitParams::Base(params),
+            )
+            .unwrap();
+            let breakpoints_path = data_path.join(PathBuf::from("breakpoints.json"));
+            let f = File::open(&breakpoints_path).unwrap();
+            let breakpoints: RlcThreadBreakPoints = serde_json::from_reader(f).unwrap();
+            compute.use_inputs(input).run(pk, breakpoints);
         }
     }
 }

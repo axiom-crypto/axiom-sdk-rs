@@ -157,8 +157,8 @@ pub fn check_compute_proof_and_query_format<S: AxiomCircuitScaffold<Http, Fr>>(
     is_aggregation: bool,
 ) {
     let client = get_provider();
-    let (vk, pk) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let output = run::<_, S>(client, params.clone(), None, pk);
+    let (vk, pk, break_points) = keygen::<_, S>(client.clone(), params.clone(), None);
+    let output = run::<_, S>(client, params.clone(), None, pk, break_points);
     check_compute_proof_format(output.clone(), is_aggregation);
     check_compute_query_format(output, params, vk);
 }
