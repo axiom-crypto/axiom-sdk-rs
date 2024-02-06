@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-use axiom_client::{
+use axiom_circuit::{
     axiom_eth::{
         halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
         halo2_proofs::{plonk::ProvingKey, SerdeFormat},

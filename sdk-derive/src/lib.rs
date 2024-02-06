@@ -30,7 +30,7 @@ pub fn AxiomComputeInput(_args: TokenStream, input: TokenStream) -> TokenStream 
         #flatten
 
         fn main() {
-            axiom_client_sdk::cmd::run_cli::<#name>();
+            axiom_sdk::cmd::run_cli::<#name>();
         }
     }
     .into()

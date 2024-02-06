@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use axiom_client::{
+use axiom_circuit::{
     axiom_codec::{constants::MAX_SOLIDITY_MAPPING_KEYS, HiLo},
     axiom_eth::halo2_base::{AssignedValue, Context},
     subquery::{caller::SubqueryCaller, types::AssignedSolidityNestedMappingSubquery},

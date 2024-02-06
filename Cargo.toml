@@ -1,5 +1,5 @@
 [workspace]
-members = ["axiom-client", "axiom-client-sdk", "axiom-client-derive"]
+members = ["circuit", "sdk", "sdk-derive"]
 resolver = "2"
 
 [profile.dev]

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use axiom_client::{
+use axiom_circuit::{
     axiom_codec::{
         special_values::{TX_CALLDATA_IDX_OFFSET, TX_CONTRACT_DATA_IDX_OFFSET},
         HiLo,

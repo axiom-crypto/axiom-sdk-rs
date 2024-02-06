@@ -50,7 +50,7 @@ pub fn impl_new_struct(ast: &ItemStruct) -> Result<TokenStream, TokenStream> {
         .zip(field_types.iter())
         .map(|(name, field_type)| {
             quote! {
-                #name: <#field_type as axiom_client::input::raw_input::RawInput<axiom_client_sdk::Fr>>::FEType<T>,
+                #name: <#field_type as axiom_circuit::input::raw_input::RawInput<axiom_sdk::Fr>>::FEType<T>,
             }
         })
         .collect();
@@ -128,7 +128,7 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
         if let GenericParam::Type(type_param) = param {
             if type_param.ident == "T" {
                 type_param.ident = parse_quote! { F };
-                type_param.bounds = parse_quote! { axiom_client::axiom_eth::Field };
+                type_param.bounds = parse_quote! { axiom_circuit::axiom_eth::Field };
                 break;
             }
         }
@@ -138,7 +138,7 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
 
     let num_fe_tokens = field_types.iter().map(|ident| {
         quote! {
-            <#ident as axiom_client::input::flatten::InputFlatten<T>>::NUM_FE
+            <#ident as axiom_circuit::input::flatten::InputFlatten<T>>::NUM_FE
         }
     });
     let num_fe_tokens_clone = num_fe_tokens.clone();
@@ -155,13 +155,13 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
         .enumerate()
         .map(|(index, (name, field_type))| {
             quote! {
-                #name: <#field_type as axiom_client::input::flatten::InputFlatten<T>>::unflatten(segmented_fe[#index].clone())?,
+                #name: <#field_type as axiom_circuit::input::flatten::InputFlatten<T>>::unflatten(segmented_fe[#index].clone())?,
             }
         })
         .collect();
 
     quote! {
-        impl #impl_generics axiom_client::input::flatten::InputFlatten<T> for #name #ty_generics {
+        impl #impl_generics axiom_circuit::input::flatten::InputFlatten<T> for #name #ty_generics {
             const NUM_FE: usize = #(#num_fe_tokens + )* 0;
             fn flatten_vec(&self) -> Vec<T> {
                 let flattened = vec![#(#flatten_tokens)*];
@@ -169,11 +169,11 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
             }
 
             fn unflatten(vec: Vec<T>) -> anyhow::Result<Self> {
-                if vec.len() != <Self as axiom_client::input::flatten::InputFlatten<T>>::NUM_FE {
+                if vec.len() != <Self as axiom_circuit::input::flatten::InputFlatten<T>>::NUM_FE {
                     anyhow::bail!(
                         "Invalid input length: {} != {}",
                         vec.len(),
-                        <Self as axiom_client::input::flatten::InputFlatten<T>>::NUM_FE
+                        <Self as axiom_circuit::input::flatten::InputFlatten<T>>::NUM_FE
                     );
                 }
 
@@ -192,10 +192,10 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
             }
         }
 
-        impl #new_impl_generics axiom_client::input::raw_input::RawInput<F> for #raw_circuit_name_ident #old_ty_generics {
+        impl #new_impl_generics axiom_circuit::input::raw_input::RawInput<F> for #raw_circuit_name_ident #old_ty_generics {
             type FEType<T: Copy> = #name #new_ty_generics;
             fn convert(&self) -> Self::FEType<F> {
-                use axiom_client::input::raw_input::RawInput;
+                use axiom_circuit::input::raw_input::RawInput;
                 #name {
                     #(#field_names: self.#field_names.convert(),)*
                 }
@@ -204,7 +204,7 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
 
         impl #new_impl_generics From<#raw_circuit_name_ident #old_ty_generics> for #name #new_ty_generics {
             fn from(input: #raw_circuit_name_ident #old_ty_generics) -> Self {
-                use axiom_client::input::raw_input::RawInput;
+                use axiom_circuit::input::raw_input::RawInput;
                 #name {
                     #(#field_names: input.#field_names.convert(),)*
                 }
@@ -218,7 +218,7 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
             }
         }
 
-        impl #old_impl_generics axiom_client_sdk::compute::AxiomComputeInput for #raw_circuit_name_ident #old_ty_generics {
+        impl #old_impl_generics axiom_sdk::compute::AxiomComputeInput for #raw_circuit_name_ident #old_ty_generics {
             type LogicInput = #raw_circuit_name_ident #old_ty_generics;
             type Input<T: Copy> = #name #ty_generics;
         }

@@ -1,8 +1,8 @@
 #[macro_export]
 macro_rules! axiom_compute_tests {
     ($input_struct:ident, $inputs:ident, $k: expr) => {
-        fn params() -> axiom_client::axiom_eth::halo2_base::gates::circuit::BaseCircuitParams {
-            axiom_client::axiom_eth::halo2_base::gates::circuit::BaseCircuitParams {
+        fn params() -> axiom_circuit::axiom_eth::halo2_base::gates::circuit::BaseCircuitParams {
+            axiom_circuit::axiom_eth::halo2_base::gates::circuit::BaseCircuitParams {
                 k: $k,
                 num_advice_per_phase: vec![4],
                 num_fixed: 1,

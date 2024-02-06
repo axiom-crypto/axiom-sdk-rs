@@ -1,4 +1,4 @@
-# axiom-client-sdk
+# axiom-sdk
 
 ## Usage
 

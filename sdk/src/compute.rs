@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use axiom_client::{
+use axiom_circuit::{
     axiom_eth::{
         halo2_base::{
             gates::{circuit::BaseCircuitParams, RangeChip},

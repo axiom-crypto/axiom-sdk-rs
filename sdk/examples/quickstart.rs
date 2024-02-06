@@ -1,6 +1,6 @@
 use std::{fmt::Debug, str::FromStr};
 
-use axiom_client_sdk::{
+use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
     halo2_base::AssignedValue,
     subquery::{AccountField, HeaderField, TxField},

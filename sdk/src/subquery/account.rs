@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use axiom_client::{
+use axiom_circuit::{
     axiom_codec::HiLo,
     axiom_eth::halo2_base::{AssignedValue, Context},
     subquery::{caller::SubqueryCaller, types::AssignedAccountSubquery, AccountField},

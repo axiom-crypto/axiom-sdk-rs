@@ -5,4 +5,4 @@ pub mod receipt;
 pub mod storage;
 pub mod tx;
 
-pub use axiom_client::subquery::{AccountField, HeaderField, ReceiptField, TxField};
+pub use axiom_circuit::subquery::{AccountField, HeaderField, ReceiptField, TxField};

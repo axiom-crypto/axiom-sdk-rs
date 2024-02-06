@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use axiom_client::{
+use axiom_circuit::{
     axiom_codec::{
         special_values::{
             RECEIPT_ADDRESS_IDX, RECEIPT_DATA_IDX_OFFSET, RECEIPT_LOGS_BLOOM_IDX_OFFSET,
