@@ -162,13 +162,13 @@ where
         }
         SnarkCmd::Prove => {
             let pinning_path = data_path.join(PathBuf::from("pinning.json"));
-            let f = File::open(&pinning_path).unwrap();
+            let f = File::open(pinning_path).unwrap();
             let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
             let compute = AxiomCompute::<A>::new()
                 .use_pinning(pinning.clone())
                 .use_provider(provider);
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
-            let mut f = File::open(&pk_path).unwrap();
+            let mut f = File::open(pk_path).unwrap();
             let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
                 &mut f,
                 SerdeFormat::RawBytes,
@@ -179,13 +179,13 @@ where
         }
         SnarkCmd::Run => {
             let pinning_path = data_path.join(PathBuf::from("pinning.json"));
-            let f = File::open(&pinning_path).unwrap();
+            let f = File::open(pinning_path).unwrap();
             let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
             let compute = AxiomCompute::<A>::new()
                 .use_pinning(pinning.clone())
                 .use_provider(provider);
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
-            let mut f = File::open(&pk_path).unwrap();
+            let mut f = File::open(pk_path).unwrap();
             let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
                 &mut f,
                 SerdeFormat::RawBytes,
