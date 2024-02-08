@@ -97,9 +97,9 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         Self::from_stage(provider, circuit_params, CircuitBuilderStage::Mock)
     }
 
-    pub fn from_pinning(provider: Provider<P>, pinning: AxiomCircuitPinning) -> Self {
+    pub fn prover(provider: Provider<P>, pinning: AxiomCircuitPinning) -> Self {
         let mut circuit = Self::from_stage(provider, pinning.params, CircuitBuilderStage::Prover);
-        circuit.set_break_points(pinning.breakpoints);
+        circuit.set_break_points(pinning.break_points);
         circuit
     }
 
@@ -184,7 +184,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
 
     pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning) {
         self.set_params(pinning.params);
-        self.set_break_points(pinning.breakpoints);
+        self.set_break_points(pinning.break_points);
     }
 
     pub fn use_pinning(mut self, pinning: AxiomCircuitPinning) -> Self {
@@ -217,7 +217,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
     pub fn pinning(&self) -> AxiomCircuitPinning {
         AxiomCircuitPinning {
             params: self.params(),
-            breakpoints: self.break_points(),
+            break_points: self.break_points(),
         }
     }
 

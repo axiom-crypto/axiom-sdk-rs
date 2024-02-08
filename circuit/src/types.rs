@@ -37,7 +37,7 @@ impl Default for AxiomCircuitParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AxiomCircuitPinning {
     pub params: AxiomCircuitParams,
-    pub breakpoints: RlcThreadBreakPoints,
+    pub break_points: RlcThreadBreakPoints,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]

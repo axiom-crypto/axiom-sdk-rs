@@ -84,7 +84,7 @@ pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 ) -> Snark {
     let circuit_params = RlcKeccakCircuitParams::from(pinning.params.clone());
     let params = gen_srs(circuit_params.k() as u32);
-    let mut runner = AxiomCircuit::<_, _, S>::from_pinning(provider, pinning).use_inputs(inputs);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(provider, pinning).use_inputs(inputs);
     if circuit_params.keccak_rows_per_round > 0 {
         runner.calculate_params();
     }
@@ -100,8 +100,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(pinning.params.clone());
     let k = circuit_params.k();
     let params = gen_srs(k as u32);
-    let mut runner =
-        AxiomCircuit::<_, _, S>::from_pinning(provider, pinning.clone()).use_inputs(inputs);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(provider, pinning.clone()).use_inputs(inputs);
     let output = runner.scaffold_output();
     if circuit_params.keccak_rows_per_round > 0 {
         runner.calculate_params();
