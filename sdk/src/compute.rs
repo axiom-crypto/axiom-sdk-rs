@@ -5,10 +5,7 @@ use std::{
 
 use axiom_circuit::{
     axiom_eth::{
-        halo2_base::{
-            gates::{circuit::BaseCircuitParams, RangeChip},
-            AssignedValue,
-        },
+        halo2_base::{gates::RangeChip, AssignedValue},
         halo2_proofs::plonk::{ProvingKey, VerifyingKey},
         halo2curves::bn256::G1Affine,
         rlc::circuit::builder::RlcCircuitBuilder,
@@ -34,17 +31,33 @@ pub trait AxiomComputeInput: Clone + Default + Debug {
 }
 
 pub trait AxiomComputeFn: AxiomComputeInput {
-    // type Provider: JsonRpcClient + Clone = Self::ProviderType;
+    type FirstPhasePayload: Clone + Default = ();
+
     fn compute(
         api: &mut AxiomAPI,
         assigned_inputs: Self::Input<AssignedValue<Fr>>,
     ) -> Vec<AxiomResult>;
+
+    fn compute_phase0(
+        api: &mut AxiomAPI,
+        assigned_inputs: Self::Input<AssignedValue<Fr>>,
+    ) -> (Vec<AxiomResult>, Self::FirstPhasePayload) {
+        (Self::compute(api, assigned_inputs), Default::default())
+    }
+
+    #[allow(unused_variables)]
+    fn compute_phase1(
+        builder: &mut RlcCircuitBuilder<Fr>,
+        range: &RangeChip<Fr>,
+        payload: Self::FirstPhasePayload,
+    ) {
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct AxiomCompute<A: AxiomComputeFn> {
     provider: Option<Provider<Http>>,
-    params: Option<BaseCircuitParams>,
+    params: Option<AxiomCircuitParams>,
     pinning: Option<AxiomCircuitPinning>,
     input: Option<A::LogicInput>,
 }
@@ -67,6 +80,7 @@ where
 {
     type InputValue = A::Input<Fr>;
     type InputWitness = A::Input<AssignedValue<Fr>>;
+    type FirstPhasePayload = A::FirstPhasePayload;
 
     fn virtual_assign_phase0(
         builder: &mut RlcCircuitBuilder<Fr>,
@@ -74,9 +88,9 @@ where
         subquery_caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
         callback: &mut Vec<HiLo<AssignedValue<Fr>>>,
         assigned_inputs: Self::InputWitness,
-    ) {
+    ) -> <A as AxiomComputeFn>::FirstPhasePayload {
         let mut api = AxiomAPI::new(builder, range, subquery_caller);
-        let result = A::compute(&mut api, assigned_inputs);
+        let (result, payload) = A::compute_phase0(&mut api, assigned_inputs);
         let hilo_output = result
             .into_iter()
             .map(|result| match result {
@@ -85,6 +99,15 @@ where
             })
             .collect::<Vec<_>>();
         callback.extend(hilo_output);
+        payload
+    }
+
+    fn virtual_assign_phase1(
+        builder: &mut RlcCircuitBuilder<Fr>,
+        range: &RangeChip<Fr>,
+        payload: Self::FirstPhasePayload,
+    ) {
+        A::compute_phase1(builder, range, payload);
     }
 }
 
@@ -101,7 +124,7 @@ where
         self.provider = Some(provider);
     }
 
-    pub fn set_params(&mut self, params: BaseCircuitParams) {
+    pub fn set_params(&mut self, params: AxiomCircuitParams) {
         self.params = Some(params);
     }
 
@@ -118,7 +141,7 @@ where
         self
     }
 
-    pub fn use_params(mut self, params: BaseCircuitParams) -> Self {
+    pub fn use_params(mut self, params: AxiomCircuitParams) -> Self {
         self.set_params(params);
         self
     }
@@ -149,7 +172,7 @@ where
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        mock::<Http, Self>(provider, AxiomCircuitParams::Base(params), converted_input);
+        mock::<Http, Self>(provider, params, converted_input);
     }
 
     pub fn keygen(
@@ -162,7 +185,7 @@ where
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
-        keygen::<Http, Self>(provider, AxiomCircuitParams::Base(params), None)
+        keygen::<Http, Self>(provider, params, None)
     }
 
     pub fn prove(&self, pk: ProvingKey<G1Affine>) -> Snark {
@@ -183,7 +206,7 @@ where
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
-        AxiomCircuit::new(provider, AxiomCircuitParams::Base(params))
+        AxiomCircuit::new(provider, params)
     }
 }
 

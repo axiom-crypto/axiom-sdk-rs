@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
+    cmd::run_cli,
     halo2_base::{
         gates::{GateChip, GateInstructions, RangeInstructions},
         AssignedValue,
@@ -43,4 +44,9 @@ impl AxiomComputeFn for AccountAgeInput {
             assigned_inputs.claimed_block_number.into(),
         ]
     }
+}
+
+fn main() {
+    env_logger::init();
+    run_cli::<AccountAgeInput>();
 }

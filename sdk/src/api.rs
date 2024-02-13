@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex};
 use axiom_circuit::{
     axiom_codec::HiLo,
     axiom_eth::{
-        halo2_base::{gates::RangeChip, AssignedValue, Context},
+        halo2_base::{gates::RangeChip, safe_types::SafeTypeChip, AssignedValue, Context},
+        keccak::promise::{KeccakFixLenCall, KeccakVarLenCall},
         rlc::circuit::builder::RlcCircuitBuilder,
     },
     subquery::caller::SubqueryCaller,
@@ -111,5 +112,62 @@ impl<'a> AxiomAPI<'a> {
     pub fn get_tx(&mut self, block_number: AssignedValue<Fr>, tx_idx: AssignedValue<Fr>) -> Tx {
         let ctx = self.builder.base.main(0);
         get_tx(ctx, self.subquery_caller.clone(), block_number, tx_idx)
+    }
+
+    pub fn keccak_fix_len(&mut self, bytes: Vec<AssignedValue<Fr>>) -> HiLo<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        let subquery_caller = self.subquery_caller.clone();
+        let mut subquery_caller = subquery_caller.lock().unwrap();
+
+        let safe_type_chip = SafeTypeChip::new(self.range);
+        let len = bytes.len();
+        let bytes = safe_type_chip.raw_to_fix_len_bytes_vec(ctx, bytes, len);
+
+        subquery_caller.keccak(ctx, KeccakFixLenCall::new(bytes))
+    }
+
+    pub fn keccak_var_len(
+        &mut self,
+        bytes: Vec<AssignedValue<Fr>>,
+        len: AssignedValue<Fr>,
+        max_len: usize,
+    ) -> HiLo<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        let subquery_caller = self.subquery_caller.clone();
+        let mut subquery_caller = subquery_caller.lock().unwrap();
+
+        let safe_type_chip = SafeTypeChip::new(self.range);
+        let bytes = safe_type_chip.raw_to_var_len_bytes_vec(ctx, bytes, len, max_len);
+
+        subquery_caller.keccak(ctx, KeccakVarLenCall::new(bytes, 0))
+    }
+
+    pub fn keccak_fix_len_unsafe(
+        &mut self,
+        bytes: Vec<AssignedValue<Fr>>,
+    ) -> HiLo<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        let subquery_caller = self.subquery_caller.clone();
+        let mut subquery_caller = subquery_caller.lock().unwrap();
+
+        let len = bytes.len();
+        let bytes = SafeTypeChip::unsafe_to_fix_len_bytes_vec(bytes, len);
+
+        subquery_caller.keccak(ctx, KeccakFixLenCall::new(bytes))
+    }
+
+    pub fn keccak_var_len_unsafe(
+        &mut self,
+        bytes: Vec<AssignedValue<Fr>>,
+        len: AssignedValue<Fr>,
+        max_len: usize,
+    ) -> HiLo<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        let subquery_caller = self.subquery_caller.clone();
+        let mut subquery_caller = subquery_caller.lock().unwrap();
+
+        let bytes = SafeTypeChip::unsafe_to_var_len_bytes_vec(bytes, len, max_len);
+
+        subquery_caller.keccak(ctx, KeccakVarLenCall::new(bytes, 0))
     }
 }

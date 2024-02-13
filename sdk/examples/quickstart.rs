@@ -2,6 +2,7 @@ use std::{fmt::Debug, str::FromStr};
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
+    cmd::run_cli,
     halo2_base::AssignedValue,
     subquery::{AccountField, HeaderField, TxField},
     AxiomComputeInput, Fr, HiLo,
@@ -98,4 +99,9 @@ impl AxiomComputeFn for QuickstartInput {
 
         vec![]
     }
+}
+
+fn main() {
+    env_logger::init();
+    run_cli::<QuickstartInput>();
 }

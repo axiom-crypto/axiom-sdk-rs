@@ -11,9 +11,11 @@ use axiom_circuit::{
         halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
         halo2_proofs::{plonk::ProvingKey, SerdeFormat},
         halo2curves::bn256::G1Affine,
+        rlc::circuit::RlcCircuitParams,
+        utils::keccak::decorator::RlcKeccakCircuitParams,
     },
     scaffold::AxiomCircuit,
-    types::AxiomCircuitPinning,
+    types::{AxiomCircuitParams, AxiomCircuitPinning},
 };
 pub use clap::Parser;
 use clap::Subcommand;
@@ -62,6 +64,11 @@ pub struct Cli {
     pub input_path: Option<PathBuf>,
     #[arg(short, long = "data-path")]
     pub data_path: Option<PathBuf>,
+    //Advanced options
+    #[arg(long = "keccak-rows")]
+    pub keccak_rows_per_round: Option<u32>,
+    #[arg(long = "rlc-columns")]
+    pub rlc_columns: Option<u32>,
 }
 
 pub fn run_cli<A: AxiomComputeFn>()
@@ -102,16 +109,37 @@ where
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
 
+    let base_params = BaseCircuitParams {
+        k: cli.degree.unwrap() as usize,
+        num_advice_per_phase: vec![4],
+        num_fixed: 1,
+        num_lookup_advice_per_phase: vec![1],
+        lookup_bits: Some(11),
+        num_instance_columns: 1,
+    };
+
+    let keccak_rows_per_round = cli.keccak_rows_per_round.unwrap_or(0) as usize;
+    let rlc_columns = cli.rlc_columns.unwrap_or(0) as usize;
+
+    let params = if keccak_rows_per_round > 0 {
+        AxiomCircuitParams::Keccak(RlcKeccakCircuitParams {
+            keccak_rows_per_round,
+            rlc: RlcCircuitParams {
+                base: base_params,
+                num_rlc_columns: rlc_columns,
+            },
+        })
+    } else if rlc_columns > 0 {
+        AxiomCircuitParams::Rlc(RlcCircuitParams {
+            base: base_params,
+            num_rlc_columns: rlc_columns,
+        })
+    } else {
+        AxiomCircuitParams::Base(base_params)
+    };
+
     match cli.command {
         SnarkCmd::Mock => {
-            let params = BaseCircuitParams {
-                k: cli.degree.unwrap() as usize,
-                num_advice_per_phase: vec![4],
-                num_fixed: 1,
-                num_lookup_advice_per_phase: vec![1],
-                lookup_bits: Some(11),
-                num_instance_columns: 1,
-            };
             AxiomCompute::<A>::new()
                 .use_inputs(input)
                 .use_params(params)
@@ -119,16 +147,8 @@ where
                 .mock();
         }
         SnarkCmd::Keygen => {
-            let params = BaseCircuitParams {
-                k: cli.degree.unwrap() as usize,
-                num_advice_per_phase: vec![4],
-                num_fixed: 1,
-                num_lookup_advice_per_phase: vec![1],
-                lookup_bits: Some(11),
-                num_instance_columns: 1,
-            };
             let circuit = AxiomCompute::<A>::new()
-                .use_params(params.clone())
+                .use_params(params)
                 .use_provider(provider);
             let (_, pkey, pinning) = circuit.keygen();
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
