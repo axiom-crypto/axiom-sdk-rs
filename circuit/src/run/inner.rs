@@ -49,7 +49,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     let params = gen_srs(circuit_params.k() as u32);
     let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
-    if circuit_params.keccak_rows_per_round > 0 {
+    if circuit_params.keccak_rows_per_round > 0 || circuit_params.rlc.num_rlc_columns > 0 {
         runner.calculate_params();
     }
     let vk = keygen_vk(&params, &runner).expect("Failed to generate vk");
@@ -67,7 +67,7 @@ pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(pinning.params.clone());
     let params = gen_srs(circuit_params.k() as u32);
     let mut runner = AxiomCircuit::<_, _, S>::prover(provider, pinning).use_inputs(inputs);
-    if circuit_params.keccak_rows_per_round > 0 {
+    if circuit_params.keccak_rows_per_round > 0 || circuit_params.rlc.num_rlc_columns > 0 {
         runner.calculate_params();
     }
     gen_snark_shplonk(&params, &pk, runner, None::<&str>)
@@ -84,7 +84,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let params = gen_srs(k as u32);
     let mut runner = AxiomCircuit::<_, _, S>::prover(provider, pinning.clone()).use_inputs(inputs);
     let output = runner.scaffold_output();
-    if circuit_params.keccak_rows_per_round > 0 {
+    if circuit_params.keccak_rows_per_round > 0 || circuit_params.rlc.num_rlc_columns > 0 {
         runner.calculate_params();
     }
     let snark = gen_snark_shplonk(&params, &pk, runner, None::<&str>);
@@ -103,6 +103,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
             }
         }
         AxiomCircuitParams::Rlc(_) => {
+            log::warn!("Circuit with RLC must be aggregated before submitting on chain");
             build_axiom_v2_compute_query(snark.clone(), raw_circuit_params, output.clone())
         }
     };

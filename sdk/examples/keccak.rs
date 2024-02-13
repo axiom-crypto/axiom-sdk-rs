@@ -12,6 +12,7 @@ pub struct KeccakInput {
     pub a: u64,
     pub b: u64,
     pub c: u64,
+    pub len: u64,
 }
 
 impl AxiomComputeFn for KeccakInput {
@@ -19,12 +20,17 @@ impl AxiomComputeFn for KeccakInput {
         api: &mut AxiomAPI,
         assigned_inputs: KeccakCircuitInput<AssignedValue<Fr>>,
     ) -> Vec<AxiomResult> {
-        let res = api.keccak_fix_len(vec![
+        let a = api.keccak_fix_len(vec![
             assigned_inputs.a,
             assigned_inputs.b,
             assigned_inputs.c,
         ]);
-        vec![res.into()]
+        let b = api.keccak_var_len(
+            vec![assigned_inputs.a, assigned_inputs.b, assigned_inputs.c],
+            assigned_inputs.len,
+            3,
+        );
+        vec![a.into(), b.into()]
     }
 }
 

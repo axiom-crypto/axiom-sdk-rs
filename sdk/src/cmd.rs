@@ -110,12 +110,9 @@ where
     let input_path = cli.input_path.unwrap();
     let json_str = fs::read_to_string(input_path).expect("Unable to read file");
     let input: A::LogicInput = serde_json::from_str(&json_str).expect("Unable to parse JSON");
-    if cli.provider.is_none() && env::var("PROVIDER_URI").is_err() {
-        panic!("The `provider` argument is required for the selected command. Either pass it as an argument or set the `PROVIDER_URI` environment variable.");
-    }
     let provider_uri = cli
         .provider
-        .unwrap_or_else(|| env::var("PROVIDER_URI").unwrap());
+        .unwrap_or_else(|| env::var("PROVIDER_URI").expect("The `provider` argument is required for the selected command. Either pass it as an argument or set the `PROVIDER_URI` environment variable."));
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
 
@@ -196,8 +193,7 @@ where
             }
             let f = File::create(&pinning_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
-            let mut writer = BufWriter::new(f);
-            serde_json::to_writer_pretty(&mut writer, &pinning)
+            serde_json::to_writer_pretty(&f, &pinning)
                 .expect("writing circuit pinning should not fail");
         }
         SnarkCmd::Prove => {
@@ -232,7 +228,18 @@ where
                 pinning.params,
             )
             .unwrap();
-            compute.use_inputs(input).run(pk);
+            let output = compute.use_inputs(input).run(pk);
+            let output_path = data_path.join(PathBuf::from("output.snark"));
+            let f = File::create(&output_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {output_path:?}"));
+            bincode::serialize_into(f, &output.snark).expect("Writing SNARK should not fail");
+            let output_json_path = data_path.join(PathBuf::from("output.json"));
+            if output_json_path.exists() {
+                fs::remove_file(&output_json_path).unwrap();
+            }
+            let f = File::create(&output_json_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {output_json_path:?}"));
+            serde_json::to_writer_pretty(&f, &output.data).expect("Writing output should not fail");
         }
     }
 }
