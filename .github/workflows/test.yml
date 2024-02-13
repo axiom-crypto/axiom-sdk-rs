@@ -25,4 +25,4 @@ jobs:
       - name: Test rust client
         run: |
           export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
-          cargo test
+          cargo test -- --test-threads=1
