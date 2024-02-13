@@ -1,13 +1,11 @@
-use std::{fmt::Debug, str::FromStr};
+use std::fmt::Debug;
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
     cmd::run_cli,
     halo2_base::AssignedValue,
-    subquery::{AccountField, HeaderField, TxField},
-    AxiomComputeInput, Fr, HiLo,
+    AxiomComputeInput, Fr,
 };
-use ethers::types::{Address, H256};
 
 #[AxiomComputeInput]
 pub struct KeccakInput {

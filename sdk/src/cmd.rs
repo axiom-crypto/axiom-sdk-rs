@@ -21,6 +21,7 @@ pub use clap::Parser;
 use clap::Subcommand;
 use ethers::providers::{Http, Provider};
 use log::warn;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     compute::{AxiomCompute, AxiomComputeFn},
@@ -37,6 +38,17 @@ pub enum SnarkCmd {
     Prove,
     /// Generate an Axiom compute query
     Run,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RawCircuitParams {
+    pub k: usize,
+    pub num_advice_per_phase: Vec<usize>,
+    pub num_fixed: usize,
+    pub num_lookup_advice_per_phase: Vec<usize>,
+    pub lookup_bits: Option<usize>,
+    pub num_rlc_columns: Option<usize>,
+    pub keccak_rows_per_round: Option<usize>,
 }
 
 impl std::fmt::Display for SnarkCmd {
@@ -65,10 +77,8 @@ pub struct Cli {
     #[arg(short, long = "data-path")]
     pub data_path: Option<PathBuf>,
     //Advanced options
-    #[arg(long = "keccak-rows")]
-    pub keccak_rows_per_round: Option<u32>,
-    #[arg(long = "rlc-columns")]
-    pub rlc_columns: Option<u32>,
+    #[arg(short = 'c', long = "config")]
+    pub config: Option<PathBuf>,
 }
 
 pub fn run_cli<A: AxiomComputeFn>()
@@ -109,33 +119,43 @@ where
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
 
-    let base_params = BaseCircuitParams {
-        k: cli.degree.unwrap() as usize,
-        num_advice_per_phase: vec![4],
-        num_fixed: 1,
-        num_lookup_advice_per_phase: vec![1],
-        lookup_bits: Some(11),
-        num_instance_columns: 1,
-    };
-
-    let keccak_rows_per_round = cli.keccak_rows_per_round.unwrap_or(0) as usize;
-    let rlc_columns = cli.rlc_columns.unwrap_or(0) as usize;
-
-    let params = if keccak_rows_per_round > 0 {
-        AxiomCircuitParams::Keccak(RlcKeccakCircuitParams {
-            keccak_rows_per_round,
-            rlc: RlcCircuitParams {
+    let params = if let Some(config) = cli.config {
+        let f = File::open(config).unwrap();
+        let raw_params: RawCircuitParams = serde_json::from_reader(f).unwrap();
+        let base_params = BaseCircuitParams {
+            k: raw_params.k,
+            num_advice_per_phase: raw_params.num_advice_per_phase,
+            num_fixed: raw_params.num_fixed,
+            num_lookup_advice_per_phase: raw_params.num_lookup_advice_per_phase,
+            lookup_bits: raw_params.lookup_bits,
+            num_instance_columns: 1,
+        };
+        if let Some(keccak_rows_per_round) = raw_params.keccak_rows_per_round {
+            let rlc_columns = raw_params.num_rlc_columns.unwrap_or(0);
+            AxiomCircuitParams::Keccak(RlcKeccakCircuitParams {
+                keccak_rows_per_round,
+                rlc: RlcCircuitParams {
+                    base: base_params,
+                    num_rlc_columns: rlc_columns,
+                },
+            })
+        } else if let Some(rlc_columns) = raw_params.num_rlc_columns {
+            AxiomCircuitParams::Rlc(RlcCircuitParams {
                 base: base_params,
                 num_rlc_columns: rlc_columns,
-            },
-        })
-    } else if rlc_columns > 0 {
-        AxiomCircuitParams::Rlc(RlcCircuitParams {
-            base: base_params,
-            num_rlc_columns: rlc_columns,
-        })
+            })
+        } else {
+            AxiomCircuitParams::Base(base_params)
+        }
     } else {
-        AxiomCircuitParams::Base(base_params)
+        AxiomCircuitParams::Base(BaseCircuitParams {
+            k: cli.degree.unwrap() as usize,
+            num_advice_per_phase: vec![4],
+            num_fixed: 1,
+            num_lookup_advice_per_phase: vec![1],
+            lookup_bits: Some(11),
+            num_instance_columns: 1,
+        })
     };
 
     match cli.command {

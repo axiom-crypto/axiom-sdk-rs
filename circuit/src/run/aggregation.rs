@@ -1,9 +1,3 @@
-use std::{
-    fs::{create_dir_all, File},
-    io::Write,
-    path::Path,
-};
-
 use axiom_query::axiom_eth::{
     halo2_base::{
         gates::{circuit::CircuitBuilderStage, flex_gate::MultiPhaseThreadBreakPoints},
@@ -12,7 +6,6 @@ use axiom_query::axiom_eth::{
     halo2_proofs::{
         dev::MockProver,
         plonk::{keygen_pk, keygen_vk, ProvingKey, VerifyingKey},
-        SerdeFormat,
     },
     halo2curves::bn256::G1Affine,
     snark_verifier_sdk::{halo2::gen_snark_shplonk, CircuitExt, Snark},
@@ -45,18 +38,7 @@ pub fn agg_circuit_keygen(
     let circuit =
         create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Keygen);
     let vk = keygen_vk(&params, &circuit).expect("Failed to generate vk");
-    let path = Path::new("data/agg_vk.bin");
-    if let Some(parent) = path.parent() {
-        create_dir_all(parent).expect("Failed to create data directory");
-    }
-    let mut vk_file = File::create(path).expect("Failed to create vk file");
-    vk.write(&mut vk_file, SerdeFormat::RawBytesUnchecked)
-        .expect("Failed to write vk");
     let pk = keygen_pk(&params, vk.clone(), &circuit).expect("Failed to generate pk");
-    let path = Path::new("data/agg_pk.bin");
-    let mut pk_file = File::create(path).expect("Failed to create pk file");
-    pk.write(&mut pk_file, SerdeFormat::Processed)
-        .expect("Failed to write pk");
     let breakpoints = circuit.break_points();
     (vk, pk, breakpoints)
 }
@@ -97,8 +79,5 @@ pub fn agg_circuit_run(
         data: inner_output,
         snark: agg_snark,
     };
-    let serialized = serde_json::to_string_pretty(&output).unwrap();
-    let mut file = File::create("data/output.json").unwrap();
-    file.write_all(serialized.as_bytes()).unwrap();
     output
 }

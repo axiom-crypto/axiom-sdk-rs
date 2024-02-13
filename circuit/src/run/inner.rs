@@ -1,16 +1,9 @@
-use std::{
-    fs::{create_dir_all, File},
-    io::Write,
-    path::Path,
-};
-
 use axiom_codec::types::native::AxiomV2ComputeQuery;
 use axiom_query::axiom_eth::{
     halo2_base::utils::fs::gen_srs,
     halo2_proofs::{
         dev::MockProver,
         plonk::{keygen_pk, keygen_vk, ProvingKey, VerifyingKey},
-        SerdeFormat,
     },
     halo2curves::bn256::{Fr, G1Affine},
     snark_verifier_sdk::{halo2::gen_snark_shplonk, Snark},
@@ -61,18 +54,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     }
     let vk = keygen_vk(&params, &runner).expect("Failed to generate vk");
     let pinning = runner.pinning();
-    let path = Path::new("data/vk.bin");
-    if let Some(parent) = path.parent() {
-        create_dir_all(parent).expect("Failed to create data directory");
-    }
-    let mut vk_file = File::create(path).expect("Failed to create vk file");
-    vk.write(&mut vk_file, SerdeFormat::RawBytesUnchecked)
-        .expect("Failed to write vk");
     let pk = keygen_pk(&params, vk.clone(), &runner).expect("Failed to generate pk");
-    let path = Path::new("data/pk.bin");
-    let mut pk_file = File::create(path).expect("Failed to create pk file");
-    pk.write(&mut pk_file, SerdeFormat::Processed)
-        .expect("Failed to write pk");
     (vk, pk, pinning)
 }
 
@@ -129,8 +111,5 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
         data: output,
         snark,
     };
-    let serialized = serde_json::to_string_pretty(&output).unwrap();
-    let mut file = File::create("data/output.json").unwrap();
-    file.write_all(serialized.as_bytes()).unwrap();
     output
 }
