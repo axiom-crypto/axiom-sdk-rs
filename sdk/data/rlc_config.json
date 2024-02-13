@@ -2,15 +2,14 @@
     "k": 15,
     "num_advice_per_phase": [
         5,
-        0
+        1
     ],
     "num_fixed": 1,
     "num_lookup_advice_per_phase": [
         5,
-        0,
+        1,
         0
     ],
     "lookup_bits": 14,
-    "num_rlc_columns": 0,
-    "keccak_rows_per_round": 50
+    "num_rlc_columns": 1
 }
