@@ -1,7 +1,7 @@
-# @axiom-crypto/client
+# axiom-sdk-rs
 
 This repository is split into 3 components:
 
-- `client`: Contains the Axiom CLI interface and developer-facing AxiomCircuit exports
-- `circuit`: Handles lower-level interface with Wasm circuit libraries
-- `test`: Tests for the `client`
+- `circuit`: Lower-level API for writing Axiom compute circuits
+- `sdk`: User-friendly API for writing Axiom compute circuits
+- `sdk-derive`: Procedural macros to for writing circuits with axiom-sdk
