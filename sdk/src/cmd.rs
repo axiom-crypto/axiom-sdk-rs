@@ -29,6 +29,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, Subcommand)]
+/// Circuit CLI commands
 pub enum SnarkCmd {
     /// Run the mock prover
     Mock,
@@ -41,6 +42,7 @@ pub enum SnarkCmd {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+/// Struct for specifying custom circuit parameters via JSON
 pub struct RawCircuitParams {
     pub k: usize,
     pub num_advice_per_phase: Vec<usize>,
@@ -67,20 +69,39 @@ impl std::fmt::Display for SnarkCmd {
 /// Command-line helper for building Axiom compute circuits
 pub struct Cli {
     #[command(subcommand)]
+    /// The command to run
     pub command: SnarkCmd,
-    #[arg(short = 'k', long = "degree")]
+    #[arg(
+        short = 'k',
+        long = "degree",
+        help = "To determine the size of your circuit (12..25)"
+    )]
+    /// The degree of the circuit
     pub degree: Option<u32>,
-    #[arg(short = 'p', long = "provider")]
+    #[arg(short = 'p', long = "provider", help = "JSON RPC provider URI")]
+    /// The JSON RPC provider URI
     pub provider: Option<String>,
-    #[arg(short, long = "input")]
+    #[arg(short, long = "input", help = "JSON inputs to feed into your circuit")]
+    /// The JSON inputs to feed into your circuit
     pub input_path: Option<PathBuf>,
-    #[arg(short, long = "data-path")]
+    #[arg(
+        short,
+        long = "data-path",
+        help = "For saving build artifacts (optional)"
+    )]
+    /// The path to save build artifacts
     pub data_path: Option<PathBuf>,
     //Advanced options
-    #[arg(short = 'c', long = "config")]
+    #[arg(
+        short = 'c',
+        long = "config",
+        help = "For specifying custom circuit parameters (optional)"
+    )]
+    /// The path to a custom circuit configuration
     pub config: Option<PathBuf>,
 }
 
+/// Runs the CLI given on any struct that implements the `AxiomComputeFn` trait
 pub fn run_cli<A: AxiomComputeFn>()
 where
     A::Input<Fr>: Default + Debug,

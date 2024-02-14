@@ -15,6 +15,7 @@ use ethers::providers::Http;
 
 use crate::Fr;
 
+/// Tx subquery builder
 pub struct Tx<'a> {
     pub block_number: AssignedValue<Fr>,
     pub tx_idx: AssignedValue<Fr>,
@@ -22,7 +23,7 @@ pub struct Tx<'a> {
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
-pub fn get_tx(
+pub(crate) fn get_tx(
     ctx: &mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
     block_number: AssignedValue<Fr>,
@@ -37,6 +38,9 @@ pub fn get_tx(
 }
 
 impl<'a> Tx<'a> {
+    /// Fetches the tx subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `field` - The tx field to fetch
     pub fn call(self, field: TxField) -> HiLo<AssignedValue<Fr>> {
         let field_constant = self.ctx.load_constant(Fr::from(field));
         let mut subquery_caller = self.caller.lock().unwrap();
@@ -48,6 +52,9 @@ impl<'a> Tx<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Fetches the tx calldata subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `calldata_idx` - the index of a 32 byte calldata chunk
     pub fn calldata(self, calldata_idx: AssignedValue<Fr>) -> HiLo<AssignedValue<Fr>> {
         let mut subquery_caller = self.caller.lock().unwrap();
         let calldata_offset = self
@@ -63,6 +70,9 @@ impl<'a> Tx<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Fetches the tx contract data subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `contract_data_idx` - the index of a 32 byte chunk of the transaction input data
     pub fn contract_data(self, contract_data_idx: AssignedValue<Fr>) -> HiLo<AssignedValue<Fr>> {
         let mut subquery_caller = self.caller.lock().unwrap();
         let contract_data_offset = self

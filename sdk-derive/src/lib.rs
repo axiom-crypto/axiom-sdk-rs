@@ -11,6 +11,10 @@ mod input;
 
 #[proc_macro_attribute]
 #[allow(non_snake_case)]
+/// Derive the `AxiomComputeInput` trait for a struct.
+/// The struct must be named `_Input`. Ex: `ExampleInput`.
+/// All the fields of the struct must implement `RawInput` from `axiom_circuit::input::raw_input`,
+/// which has already been implemented for most primitive Rust types and Ethers types.
 pub fn AxiomComputeInput(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input_clone = input.clone();
     let ast = parse_macro_input!(input_clone as ItemStruct);

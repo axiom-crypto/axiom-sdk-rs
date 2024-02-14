@@ -2,13 +2,13 @@ use std::fmt::Debug;
 
 use axiom_circuit::axiom_eth::rlc::circuit::builder::RlcCircuitBuilder;
 use axiom_sdk::{
-    axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
+    axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
     cmd::run_cli,
     halo2_base::{
-        gates::{RangeChip, RangeInstructions},
+        gates::{GateInstructions, RangeChip, RangeInstructions},
         AssignedValue,
     },
-    AxiomComputeInput, Fr,
+    Fr,
 };
 
 #[AxiomComputeInput]
@@ -42,7 +42,13 @@ impl AxiomComputeFn for RlcInput {
     ) {
         let gate = range.gate();
         let rlc_chip = builder.rlc_chip(gate);
-        rlc_chip.compute_rlc_fixed_len(builder.base.main(1), payload);
+        let (ctx, rlc_ctx) = builder.rlc_ctx_pair();
+        gate.add(ctx, payload[0], payload[1]);
+        let x = vec![
+            ctx.load_constant(Fr::from(1)),
+            ctx.load_constant(Fr::from(2)),
+        ];
+        rlc_chip.compute_rlc_fixed_len(rlc_ctx, x);
     }
 }
 

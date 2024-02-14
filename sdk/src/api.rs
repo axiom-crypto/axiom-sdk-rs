@@ -24,10 +24,14 @@ use crate::{
     Fr,
 };
 
+/// Axiom Circuit API for making both subquery calls (e.g. `get_account`, `get_header`, etc.) and for more general ZK primitives (e.g. `add`, `mul`, etc.).
 pub struct AxiomAPI<'a> {
+    /// The `halo2-lib` struct used to construct the circuit
     pub builder: &'a mut RlcCircuitBuilder<Fr>,
+    /// The main chip for ZK primitives
     pub range: &'a RangeChip<Fr>,
-    pub subquery_caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
+    /// The struct that manages all subquery calls
+    subquery_caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
 impl<'a> AxiomAPI<'a> {
@@ -43,24 +47,41 @@ impl<'a> AxiomAPI<'a> {
         }
     }
 
+    /// Returns a thread-safe [SubqueryCaller] object.
     pub fn subquery_caller(&self) -> Arc<Mutex<SubqueryCaller<Http, Fr>>> {
         self.subquery_caller.clone()
     }
 
+    /// Returns a mutable reference to the [Context] of a gate thread. Spawns a new thread for the given phase, if none exists.
+    /// * `phase`: The challenge phase (as an index) of the gate thread.
     pub fn ctx(&mut self) -> &mut Context<Fr> {
         self.builder.base.main(0)
     }
 
+    /// Returns an `AssignedValue<Fr>` from a `HiLo<AssignedValue<Fr>>`.
+    ///
+    /// NOTE: this can fail if the hi-lo pair is greater than the `Fr` modulus. See `check_hi_lo` for what is constrained.
+    ///
+    /// * `hilo` - The `HiLo<AssignedValue<Fr>>` object to convert.
     pub fn from_hi_lo(&mut self, hilo: HiLo<AssignedValue<Fr>>) -> AssignedValue<Fr> {
         let ctx = self.builder.base.main(0);
         from_hi_lo(ctx, self.range, hilo)
     }
 
+    /// Returns a 256-bit `HiLo<AssignedValue<Fr>>` from a `AssignedValue<Fr>`.
+    ///
+    /// See `check_hi_lo` for what is constrained.
+    ///
+    /// * `val` - The `AssignedValue<Fr>` object to convert.
     pub fn to_hi_lo(&mut self, val: AssignedValue<Fr>) -> HiLo<AssignedValue<Fr>> {
         let ctx = self.builder.base.main(0);
         to_hi_lo(ctx, self.range, val)
     }
 
+    /// Returns an [Account] builder given block number and address.
+    ///
+    /// * `block_number` - The block number as an `AssignedValue<Fr>`.
+    /// * `addr` - The address as an `AssignedValue<Fr>`.
     pub fn get_account(
         &mut self,
         block_number: AssignedValue<Fr>,
@@ -70,11 +91,19 @@ impl<'a> AxiomAPI<'a> {
         get_account(ctx, self.subquery_caller.clone(), block_number, addr)
     }
 
+    /// Returns a [Header] builder given block number.
+    ///
+    /// * `block_number` - The block number as an `AssignedValue<Fr>`.
     pub fn get_header(&mut self, block_number: AssignedValue<Fr>) -> Header {
         let ctx = self.builder.base.main(0);
         get_header(ctx, self.subquery_caller.clone(), block_number)
     }
 
+    /// Returns a [SolidityMapping] builder given block number, address, and mapping slot.
+    ///
+    /// * `block_number` - The block number as an `AssignedValue<Fr>`.
+    /// * `addr` - The address as an `AssignedValue<Fr>`.
+    /// * `mapping_slot` - The mapping slot as a `HiLo<AssignedValue<Fr>`.
     pub fn get_mapping(
         &mut self,
         block_number: AssignedValue<Fr>,
@@ -91,6 +120,10 @@ impl<'a> AxiomAPI<'a> {
         )
     }
 
+    /// Returns a [Receipt] builder given block number and transaction index.
+    ///
+    /// * `block_number` - The block number as an `AssignedValue<Fr>`.
+    /// * `tx_idx` - The transaction index as an `AssignedValue<Fr>`.
     pub fn get_receipt(
         &mut self,
         block_number: AssignedValue<Fr>,
@@ -100,6 +133,10 @@ impl<'a> AxiomAPI<'a> {
         get_receipt(ctx, self.subquery_caller.clone(), block_number, tx_idx)
     }
 
+    /// Returns a [Storage] builder given block number and address.
+    ///
+    /// * `block_number` - The block number as an `AssignedValue<Fr>`.
+    /// * `addr` - The address as an `AssignedValue<Fr>`.
     pub fn get_storage(
         &mut self,
         block_number: AssignedValue<Fr>,
@@ -109,6 +146,10 @@ impl<'a> AxiomAPI<'a> {
         get_storage(ctx, self.subquery_caller.clone(), block_number, addr)
     }
 
+    /// Returns a [Tx] builder given block number and transaction index.
+    ///
+    /// * `block_number` - The block number as an `AssignedValue<Fr>`.
+    /// * `tx_idx` - The transaction index as an `AssignedValue<Fr>`.
     pub fn get_tx(&mut self, block_number: AssignedValue<Fr>, tx_idx: AssignedValue<Fr>) -> Tx {
         let ctx = self.builder.base.main(0);
         get_tx(ctx, self.subquery_caller.clone(), block_number, tx_idx)

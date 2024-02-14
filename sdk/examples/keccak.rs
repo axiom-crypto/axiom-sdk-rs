@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
 use axiom_sdk::{
-    axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
+    axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
     cmd::run_cli,
     halo2_base::AssignedValue,
-    AxiomComputeInput, Fr,
+    Fr,
 };
 
 #[AxiomComputeInput]
