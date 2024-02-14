@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
     cmd::run_cli,
+    ethers::types::Address,
     halo2_base::{
         gates::{GateChip, GateInstructions, RangeInstructions},
         AssignedValue,
@@ -10,7 +11,6 @@ use axiom_sdk::{
     subquery::AccountField,
     AxiomComputeInput, Fr,
 };
-use ethers::types::Address;
 
 #[AxiomComputeInput]
 pub struct AccountAgeInput {

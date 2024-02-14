@@ -3,11 +3,11 @@ use std::{fmt::Debug, str::FromStr};
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
     cmd::run_cli,
+    ethers::types::{Address, H256},
     halo2_base::AssignedValue,
     subquery::{AccountField, HeaderField, TxField},
     AxiomComputeInput, Fr, HiLo,
 };
-use ethers::types::{Address, H256};
 
 #[AxiomComputeInput]
 pub struct QuickstartInput {
