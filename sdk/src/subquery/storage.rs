@@ -9,6 +9,7 @@ use ethers::providers::Http;
 
 use crate::Fr;
 
+/// Storage subquery builder
 pub struct Storage<'a> {
     pub block_number: AssignedValue<Fr>,
     pub addr: AssignedValue<Fr>,
@@ -16,7 +17,7 @@ pub struct Storage<'a> {
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
-pub fn get_storage(
+pub(crate) fn get_storage(
     ctx: &mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
     block_number: AssignedValue<Fr>,
@@ -31,6 +32,9 @@ pub fn get_storage(
 }
 
 impl<'a> Storage<'a> {
+    /// Fetches the storage subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `slot` - The storage slot to fetch
     pub fn slot(self, slot: HiLo<AssignedValue<Fr>>) -> HiLo<AssignedValue<Fr>> {
         let mut subquery_caller = self.caller.lock().unwrap();
         let subquery = AssignedStorageSubquery {

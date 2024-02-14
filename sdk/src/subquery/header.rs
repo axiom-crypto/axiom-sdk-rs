@@ -9,13 +9,14 @@ use ethers::providers::Http;
 
 use crate::Fr;
 
+/// Header subquery builder
 pub struct Header<'a> {
     pub block_number: AssignedValue<Fr>,
     ctx: &'a mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
-pub fn get_header(
+pub(crate) fn get_header(
     ctx: &mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
     block_number: AssignedValue<Fr>,
@@ -28,6 +29,9 @@ pub fn get_header(
 }
 
 impl<'a> Header<'a> {
+    /// Fetches the header subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `field` - The header field to fetch
     pub fn call(self, field: HeaderField) -> HiLo<AssignedValue<Fr>> {
         let field_constant = self.ctx.load_constant(Fr::from(field));
         let mut subquery_caller = self.caller.lock().unwrap();
@@ -38,6 +42,9 @@ impl<'a> Header<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Fetches the header logs bloom subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `logs_bloom_idx` - The logs bloom field index to fetch
     pub fn logs_bloom(self, logs_bloom_idx: usize) -> HiLo<AssignedValue<Fr>> {
         let mut subquery_caller = self.caller.lock().unwrap();
         if logs_bloom_idx >= 8 {

@@ -2,7 +2,7 @@
 
 ## Usage
 
-See [./examples/account_age.rs] for an example Axiom compute circuit. To run the `account_age` circuit:
+See [./examples/account_age.rs](./examples/account_age.rs) for an example Axiom compute circuit. To run the `account_age` circuit:
 
 ```
 cargo run --example account_age -- --input data/account_age_input.json -k 12 -p <PROVIDER_URI> <CMD>

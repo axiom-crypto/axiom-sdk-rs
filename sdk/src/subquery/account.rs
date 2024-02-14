@@ -9,6 +9,7 @@ use ethers::providers::Http;
 
 use crate::Fr;
 
+/// Account subquery builder
 pub struct Account<'a> {
     pub block_number: AssignedValue<Fr>,
     pub addr: AssignedValue<Fr>,
@@ -16,7 +17,7 @@ pub struct Account<'a> {
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
-pub fn get_account(
+pub(crate) fn get_account(
     ctx: &mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
     block_number: AssignedValue<Fr>,
@@ -31,6 +32,9 @@ pub fn get_account(
 }
 
 impl<'a> Account<'a> {
+    /// Fetches the account subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `field` - The account field to fetch
     pub fn call(self, field: AccountField) -> HiLo<AssignedValue<Fr>> {
         let field_constant = self.ctx.load_constant(Fr::from(field));
         let mut subquery_caller = self.caller.lock().unwrap();

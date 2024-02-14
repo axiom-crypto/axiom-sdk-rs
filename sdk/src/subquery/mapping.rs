@@ -9,6 +9,7 @@ use ethers::providers::Http;
 
 use crate::Fr;
 
+/// Solidity nested mapping subquery builder
 pub struct SolidityMapping<'a> {
     pub block_number: AssignedValue<Fr>,
     pub addr: AssignedValue<Fr>,
@@ -17,7 +18,7 @@ pub struct SolidityMapping<'a> {
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
-pub fn get_mapping(
+pub(crate) fn get_mapping(
     ctx: &mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
     block_number: AssignedValue<Fr>,
@@ -34,6 +35,9 @@ pub fn get_mapping(
 }
 
 impl<'a> SolidityMapping<'a> {
+    /// Fetches the Solidity nested mapping subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `keys` - A vector of nested keys into the specified mapping
     pub fn nested(self, keys: Vec<HiLo<AssignedValue<Fr>>>) -> HiLo<AssignedValue<Fr>> {
         if keys.is_empty() || keys.len() > MAX_SOLIDITY_MAPPING_KEYS {
             panic!(
@@ -60,6 +64,9 @@ impl<'a> SolidityMapping<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Fetches the Solidity mapping subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `key` - The key into the specified mapping
     pub fn key(self, key: HiLo<AssignedValue<Fr>>) -> HiLo<AssignedValue<Fr>> {
         self.nested(vec![key])
     }

@@ -24,20 +24,25 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{api::AxiomAPI, Fr};
 
+/// A trait for the input to an Axiom Compute function
 pub trait AxiomComputeInput: Clone + Default + Debug {
+    /// The type of the native input (ie. Rust types) to the compute function
     type LogicInput: Clone + Debug + Serialize + DeserializeOwned + Into<Self::Input<Fr>>;
+    /// The type of the circuit input to the compute function
     type Input<T: Copy>: Clone + InputFlatten<T>;
-    // type ProviderType: JsonRpcClient + Clone = Http;
 }
 
+/// A trait for specifying an Axiom Compute function
 pub trait AxiomComputeFn: AxiomComputeInput {
     type FirstPhasePayload: Clone + Default = ();
 
+    /// Axiom Compute function
     fn compute(
         api: &mut AxiomAPI,
         assigned_inputs: Self::Input<AssignedValue<Fr>>,
     ) -> Vec<AxiomResult>;
 
+    /// An optional function that overrides `compute` to specify phase0 circuit logic for circuits that require a challenge
     fn compute_phase0(
         api: &mut AxiomAPI,
         assigned_inputs: Self::Input<AssignedValue<Fr>>,
@@ -46,6 +51,9 @@ pub trait AxiomComputeFn: AxiomComputeInput {
     }
 
     #[allow(unused_variables)]
+    /// An optional function to specify phase1 circuit logic for circuits that require a challenge
+    ///
+    /// This function is called after the phase0 circuit logic has been executed
     fn compute_phase1(
         builder: &mut RlcCircuitBuilder<Fr>,
         range: &RangeChip<Fr>,
@@ -210,6 +218,7 @@ where
     }
 }
 
+/// A `bytes32` value that your callback contract receives upon query fulfillment
 pub enum AxiomResult {
     HiLo(HiLo<AssignedValue<Fr>>),
     AssignedValue(AssignedValue<Fr>),

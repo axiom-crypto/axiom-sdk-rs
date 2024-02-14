@@ -21,6 +21,7 @@ use ethers::{providers::Http, types::H256};
 
 use crate::Fr;
 
+/// Receipt subquery builder
 pub struct Receipt<'a> {
     pub block_number: AssignedValue<Fr>,
     pub tx_idx: AssignedValue<Fr>,
@@ -28,6 +29,7 @@ pub struct Receipt<'a> {
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
+/// Log subquery builder
 pub struct Log<'a> {
     pub block_number: AssignedValue<Fr>,
     pub tx_idx: AssignedValue<Fr>,
@@ -36,7 +38,7 @@ pub struct Log<'a> {
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
-pub fn get_receipt(
+pub(crate) fn get_receipt(
     ctx: &mut Context<Fr>,
     caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
     block_number: AssignedValue<Fr>,
@@ -51,6 +53,9 @@ pub fn get_receipt(
 }
 
 impl<'a> Receipt<'a> {
+    /// Fetches the receipt subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `field` - The receipt field to fetch
     pub fn call(self, field: ReceiptField) -> HiLo<AssignedValue<Fr>> {
         let field_constant = self.ctx.load_constant(Fr::from(field));
         let mut subquery_caller = self.caller.lock().unwrap();
@@ -67,6 +72,9 @@ impl<'a> Receipt<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Returns a receipt [Log] subquery builder
+    ///
+    /// * `log_idx` - The log index in the block
     pub fn log(self, log_idx: AssignedValue<Fr>) -> Log<'a> {
         let log_offset = self
             .ctx
@@ -82,6 +90,9 @@ impl<'a> Receipt<'a> {
         }
     }
 
+    /// Fetches the receipt logs bloom subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `logs_bloom_idx` - the index of a 32 byte chunk of the logsBloom field
     pub fn logs_bloom(self, logs_bloom_idx: usize) -> HiLo<AssignedValue<Fr>> {
         let mut subquery_caller = self.caller.lock().unwrap();
         if logs_bloom_idx >= 8 {
@@ -104,6 +115,10 @@ impl<'a> Receipt<'a> {
 }
 
 impl<'a> Log<'a> {
+    /// Fetches the receipt log subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `topic_idx` - the index of a topic in the log
+    /// * `event_schema` - The event schema of the log
     pub fn topic(
         self,
         topic_idx: AssignedValue<Fr>,
@@ -126,6 +141,10 @@ impl<'a> Log<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Fetches the receipt extra data subquery and returns the HiLo<AssignedValue<Fr>> result
+    ///
+    /// * `data_idx` - the index of a 32 byte chunk of the extra data field
+    /// * `event_schema` - The event schema of the log
     pub fn data(
         self,
         data_idx: AssignedValue<Fr>,
@@ -153,6 +172,7 @@ impl<'a> Log<'a> {
         subquery_caller.call(self.ctx, subquery)
     }
 
+    /// Fetches the address from which the log was emitted from and returns the HiLo<AssignedValue<Fr>> result
     pub fn address(self) -> HiLo<AssignedValue<Fr>> {
         let mut subquery_caller = self.caller.lock().unwrap();
         let topic = self.ctx.load_constant(Fr::from(RECEIPT_ADDRESS_IDX as u64));
