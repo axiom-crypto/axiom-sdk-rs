@@ -24,7 +24,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{api::AxiomAPI, Fr};
 
-/// A trait for the input to an Axiom Compute function
+/// A trait for specifying the input to an Axiom Compute function
 pub trait AxiomComputeInput: Clone + Default + Debug {
     /// The type of the native input (ie. Rust types) to the compute function
     type LogicInput: Clone + Debug + Serialize + DeserializeOwned + Into<Self::Input<Fr>>;
@@ -34,6 +34,7 @@ pub trait AxiomComputeInput: Clone + Default + Debug {
 
 /// A trait for specifying an Axiom Compute function
 pub trait AxiomComputeFn: AxiomComputeInput {
+    /// An optional type for the first phase payload -- only needed if you are using `compute_phase1`
     type FirstPhasePayload: Clone + Default = ();
 
     /// Axiom Compute function
@@ -63,6 +64,7 @@ pub trait AxiomComputeFn: AxiomComputeInput {
 }
 
 #[derive(Debug, Clone)]
+/// Helper struct that contains all the necessary metadata and inputs to run an Axiom Compute function
 pub struct AxiomCompute<A: AxiomComputeFn> {
     provider: Option<Provider<Http>>,
     params: Option<AxiomCircuitParams>,
@@ -124,57 +126,69 @@ where
     A::Input<Fr>: Default + Debug,
     A::Input<AssignedValue<Fr>>: Debug,
 {
+    /// Create a new AxiomCompute instance
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider for the AxiomCompute instance
     pub fn set_provider(&mut self, provider: Provider<Http>) {
         self.provider = Some(provider);
     }
 
+    /// Set the params for the AxiomCompute instance
     pub fn set_params(&mut self, params: AxiomCircuitParams) {
         self.params = Some(params);
     }
 
+    /// Set the inputs for the AxiomCompute instance
     pub fn set_inputs(&mut self, input: A::LogicInput) {
         self.input = Some(input);
     }
 
+    /// Set the pinning for the AxiomCompute instance
     pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning) {
         self.pinning = Some(pinning);
     }
 
+    /// Use the given provider for the AxiomCompute instance
     pub fn use_provider(mut self, provider: Provider<Http>) -> Self {
         self.set_provider(provider);
         self
     }
 
+    /// Use the given params for the AxiomCompute instance
     pub fn use_params(mut self, params: AxiomCircuitParams) -> Self {
         self.set_params(params);
         self
     }
 
+    /// Use the given inputs for the AxiomCompute instance
     pub fn use_inputs(mut self, input: A::LogicInput) -> Self {
         self.set_inputs(input);
         self
     }
 
+    /// Use the given pinning for the AxiomCompute instance
     pub fn use_pinning(mut self, pinning: AxiomCircuitPinning) -> Self {
         self.set_pinning(pinning);
         self
     }
 
+    /// Check that all the necessary configurations are set
     fn check_all_set(&self) {
         assert!(self.provider.is_some());
         assert!(self.pinning.is_some());
         assert!(self.input.is_some());
     }
 
+    /// Check that the provider and params are set
     fn check_provider_and_params_set(&self) {
         assert!(self.provider.is_some());
         assert!(self.params.is_some());
     }
 
+    /// Run the mock prover
     pub fn mock(&self) {
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
@@ -183,6 +197,7 @@ where
         mock::<Http, Self>(provider, params, converted_input);
     }
 
+    /// Run key generation and return the proving and verifying keys, and the circuit pinning
     pub fn keygen(
         &self,
     ) -> (
@@ -196,6 +211,7 @@ where
         keygen::<Http, Self>(provider, params, None)
     }
 
+    /// Run the prover and return the resulting snark
     pub fn prove(&self, pk: ProvingKey<G1Affine>) -> Snark {
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
@@ -203,6 +219,7 @@ where
         prove::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
     }
 
+    /// Run the prover and return the outputs needed to make an on-chain compute query
     pub fn run(&self, pk: ProvingKey<G1Affine>) -> AxiomV2CircuitOutput {
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
@@ -210,6 +227,7 @@ where
         run::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
     }
 
+    /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait
     pub fn circuit(&self) -> AxiomCircuit<Fr, Http, Self> {
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();

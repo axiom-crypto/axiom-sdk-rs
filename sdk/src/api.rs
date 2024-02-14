@@ -24,11 +24,14 @@ use crate::{
     Fr,
 };
 
-/// Axiom Circuit API
+/// Axiom Circuit API for making both subquery calls (e.g. `get_account`, `get_header`, etc.) and for more general ZK primitives (e.g. `add`, `mul`, etc.).
 pub struct AxiomAPI<'a> {
+    /// The `halo2-lib` struct used to construct the circuit
     pub builder: &'a mut RlcCircuitBuilder<Fr>,
+    /// The main chip for ZK primitives
     pub range: &'a RangeChip<Fr>,
-    pub subquery_caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
+    /// The struct that manages all subquery calls
+    subquery_caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
 }
 
 impl<'a> AxiomAPI<'a> {

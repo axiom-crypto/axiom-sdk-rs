@@ -218,7 +218,7 @@ pub fn impl_flatten_and_raw_input(ast: &DeriveInput) -> TokenStream {
             }
         }
 
-        impl #old_impl_generics axiom_sdk::compute::AxiomComputeInput for #raw_circuit_name_ident #old_ty_generics {
+        impl #old_impl_generics axiom_sdk::axiom::AxiomComputeInput for #raw_circuit_name_ident #old_ty_generics {
             type LogicInput = #raw_circuit_name_ident #old_ty_generics;
             type Input<T: Copy> = #name #ty_generics;
         }

@@ -1,15 +1,15 @@
 use std::fmt::Debug;
 
 use axiom_sdk::{
-    axiom::{AxiomAPI, AxiomComputeFn, AxiomResult},
+    axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
     cmd::run_cli,
     ethers::types::Address,
     halo2_base::{
-        gates::{GateChip, GateInstructions, RangeInstructions},
+        gates::{GateInstructions, RangeInstructions},
         AssignedValue,
     },
     subquery::AccountField,
-    AxiomComputeInput, Fr,
+    Fr,
 };
 
 #[AxiomComputeInput]
@@ -23,10 +23,12 @@ impl AxiomComputeFn for AccountAgeInput {
         api: &mut AxiomAPI,
         assigned_inputs: AccountAgeCircuitInput<AssignedValue<Fr>>,
     ) -> Vec<AxiomResult> {
-        let gate = GateChip::new();
         let zero = api.ctx().load_zero();
         let one = api.ctx().load_constant(Fr::one());
-        let prev_block = gate.sub(api.ctx(), assigned_inputs.claimed_block_number, one);
+        let prev_block = api
+            .range
+            .gate()
+            .sub(api.ctx(), assigned_inputs.claimed_block_number, one);
 
         let account_prev_block = api.get_account(prev_block, assigned_inputs.addr);
         let prev_nonce = account_prev_block.call(AccountField::Nonce);
