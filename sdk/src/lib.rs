@@ -24,7 +24,7 @@
 //!
 //! Here is an example:
 //!
-//! ```rust
+//! ```ignore
 //! #[AxiomComputeInput]
 //!     pub struct AccountAgeInput {
 //!     pub addr: Address,
@@ -35,7 +35,7 @@
 //! ### Compute Function Specification
 //!
 //! You must implement the `AxiomComputeFn` on your input struct. There is only one trait function that you must implement:
-//! ```rust
+//! ```ignore
 //! fn compute(
 //!     api: &mut AxiomAPI,
 //!     assigned_inputs: AccountAgeCircuitInput<AssignedValue<Fr>>,
@@ -47,7 +47,7 @@
 //! Your compute function should then return any values that you wish to pass on-chain in the `Vec<AxiomResult>` -- an `AxiomResult` is either an enum of either `HiLo<AssignedValue<Fr>>` or `AssignedValue<Fr>` (in which case it is converted to hi-lo for you).
 //!
 //! Here is an example:
-//! ```rust
+//! ```ignore
 //! impl AxiomComputeFn for AccountAgeInput {
 //!     fn compute(
 //!         api: &mut AxiomAPI,
@@ -80,7 +80,7 @@
 //! ### Running The Circuit
 //!
 //! To run your circuit, create a `main` function call the `run_cli` function with your input struct as the generic parameter:
-//! ```rust
+//! ```ignore
 //! fn main() {
 //!     env_logger::init();
 //!     run_cli::<AccountAgeInput>();
@@ -88,7 +88,7 @@
 //! ```
 //! The `main` function will run a CLI that allows you to run mock proving, key generation, and proving of your circuit. The CLI has the following commands:
 //!
-//! ```
+//! ```ignore
 //! Commands:
 //!     mock    Run the mock prover
 //!     keygen  Generate new proving & verifying keys
