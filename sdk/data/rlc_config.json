@@ -7,8 +7,7 @@
     "num_fixed": 1,
     "num_lookup_advice_per_phase": [
         5,
-        1,
-        0
+        1
     ],
     "lookup_bits": 14,
     "num_rlc_columns": 1
