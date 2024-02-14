@@ -17,3 +17,4 @@ pub mod axiom {
 pub mod cmd;
 pub mod compute;
 pub mod subquery;
+pub use ethers;
