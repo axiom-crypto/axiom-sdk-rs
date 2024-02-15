@@ -12,7 +12,7 @@ This repository is split into 3 components:
 
 To install our Rust circuit SDK into a Cargo project, run:
 ```bash
-cargo add axiom-sdk --git https://github.com/axiom-crypto/axiom-sdk-rs
+cargo add axiom-sdk
 ```
 
 ### Overview

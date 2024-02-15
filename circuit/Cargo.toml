@@ -1,6 +1,6 @@
 [package]
 name = "axiom-circuit"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 description = "Lower-level API for writing Axiom compute circuits"
 license = "MIT"
