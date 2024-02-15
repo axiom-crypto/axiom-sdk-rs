@@ -4,7 +4,7 @@ This repository is split into 3 components:
 
 - `sdk`: User-friendly API for writing Axiom compute circuits
 - `circuit`: Lower-level API for writing Axiom compute circuits
-- `sdk-derive`: Procedural macros to for writing circuits with axiom-sdk
+- `sdk-derive`: Procedural macros for writing Axiom compute functions with axiom-sdk
 
 ## axiom-sdk
 
@@ -12,7 +12,7 @@ This repository is split into 3 components:
 
 To install our Rust circuit SDK into a Cargo project, run:
 ```bash
-cargo add axiom-sdk --git https://github.com/axiom-crypto/axiom-sdk-rs
+cargo add axiom-sdk
 ```
 
 ### Overview

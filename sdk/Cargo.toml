@@ -2,12 +2,15 @@
 name = "axiom-sdk"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "User-friendly API for writing Axiom compute circuits"
+readme = "../readme.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axiom-circuit = { path = "../circuit" }
-axiom-sdk-derive = { path = "../sdk-derive" }
+axiom-circuit = { version="0.1.0", path = "../circuit" }
+axiom-sdk-derive = { version="0.1.0", path = "../sdk-derive" }
 ethers = "2.0"
 anyhow = "1.0.75"
 serde = { version = "1.0", features = ["derive"] }

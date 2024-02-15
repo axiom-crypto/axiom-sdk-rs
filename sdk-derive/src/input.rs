@@ -23,7 +23,7 @@ pub fn impl_new_struct(ast: &ItemStruct) -> Result<TokenStream, TokenStream> {
         .map(|field| field.ty.to_token_stream())
         .collect();
 
-    let field_names: Vec<_> = fields
+    let field_names: Vec<TokenStream> = fields
         .iter()
         .map(|field| {
             if let Some(ref field) = field.ident {
