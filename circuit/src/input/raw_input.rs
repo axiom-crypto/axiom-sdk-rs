@@ -62,12 +62,34 @@ impl<F: Field, const N: usize> RawInput<F> for [u8; N] {
     }
 }
 
-impl<F: Field, const N: usize> RawInput<F> for FixLenVec<usize, N> {
-    type FEType<T: Copy> = Vec<T>;
+impl<F: Field, const N: usize> RawInput<F> for [u64; N] {
+    type FEType<T: Copy> = [T; N];
     fn convert(&self) -> Self::FEType<F> {
-        let mut res = Vec::new();
+        let mut res = [F::ZERO; N];
         for i in 0..N {
-            res.push(F::from_u128(self.vec[i] as u128));
+            res[i] = F::from_u128(self[i] as u128);
+        }
+        res
+    }
+}
+
+impl<F: Field, const N: usize> RawInput<F> for [usize; N] {
+    type FEType<T: Copy> = [T; N];
+    fn convert(&self) -> Self::FEType<F> {
+        let mut res = [F::ZERO; N];
+        for i in 0..N {
+            res[i] = F::from_u128(self[i] as u128);
+        }
+        res
+    }
+}
+
+impl<F: Field, const N: usize> RawInput<F> for FixLenVec<usize, N> {
+    type FEType<T: Copy> = [T; N];
+    fn convert(&self) -> Self::FEType<F> {
+        let mut res = [F::ZERO; N];
+        for i in 0..N {
+            res[i] = F::from_u128(self.0[i] as u128);
         }
         res
     }
