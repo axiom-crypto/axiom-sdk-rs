@@ -48,6 +48,7 @@ use axiom_query::axiom_eth::{
 };
 use ethers::providers::{JsonRpcClient, Provider};
 use itertools::Itertools;
+use log::warn;
 
 use crate::{
     input::flatten::InputFlatten,
@@ -266,6 +267,11 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             .into_iter()
             .flat_map(|hilo| hilo.flatten())
             .collect::<Vec<_>>();
+        warn!(
+            "Callback result capacity exceeded: {} > {}",
+            flattened_callback.len(),
+            self.output_num_instances()
+        );
         flattened_callback.resize_with(self.output_num_instances(), || {
             self.builder
                 .borrow_mut()
@@ -275,6 +281,11 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         });
 
         let mut subquery_instances = subquery_caller.lock().unwrap().instances().clone();
+        warn!(
+            "Subquery result capacity exceeded: {} > {}",
+            subquery_instances.len(),
+            self.subquery_num_instances()
+        );
         subquery_instances.resize_with(self.subquery_num_instances(), || {
             self.builder
                 .borrow_mut()

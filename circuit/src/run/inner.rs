@@ -3,7 +3,7 @@ use axiom_query::axiom_eth::{
     halo2_base::utils::fs::gen_srs,
     halo2_proofs::{
         dev::MockProver,
-        plonk::{keygen_pk, keygen_vk, ProvingKey, VerifyingKey},
+        plonk::{keygen_pk, keygen_vk, Circuit, ProvingKey, VerifyingKey},
     },
     halo2curves::bn256::{Fr, G1Affine},
     snark_verifier_sdk::{halo2::gen_snark_shplonk, Snark},
@@ -21,40 +21,44 @@ use crate::{
 };
 
 pub fn mock<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
-    provider: Provider<P>,
-    raw_circuit_params: AxiomCircuitParams,
-    inputs: Option<S::InputValue>,
+    circuit: &mut AxiomCircuit<Fr, P, S>,
+    // provider: Provider<P>,
+    // raw_circuit_params: AxiomCircuitParams,
+    // inputs: Option<S::InputValue>,
 ) {
+    let raw_circuit_params = circuit.params();
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     let k = circuit_params.k();
-    let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
+    // let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
     if circuit_params.keccak_rows_per_round > 0 {
-        runner.calculate_params();
+        circuit.calculate_params();
     }
-    let instances = runner.instances();
-    MockProver::run(k as u32, &runner, instances)
+    let instances = circuit.instances();
+    MockProver::run(k as u32, circuit, instances)
         .unwrap()
         .assert_satisfied();
 }
 
 pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
-    provider: Provider<P>,
-    raw_circuit_params: AxiomCircuitParams,
-    inputs: Option<S::InputValue>,
+    circuit: &mut AxiomCircuit<Fr, P, S>,
+    // provider: Provider<P>,
+    // raw_circuit_params: AxiomCircuitParams,
+    // inputs: Option<S::InputValue>,
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
     AxiomCircuitPinning,
 ) {
+    let raw_circuit_params = circuit.params();
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     let params = gen_srs(circuit_params.k() as u32);
-    let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
+    // let mut runner = AxiomCircuit::<_, _, S>::new(provider, raw_circuit_params).use_inputs(inputs);
     if circuit_params.keccak_rows_per_round > 0 {
-        runner.calculate_params();
+        circuit.calculate_params();
     }
-    let vk = keygen_vk(&params, &runner).expect("Failed to generate vk");
-    let pinning = runner.pinning();
-    let pk = keygen_pk(&params, vk.clone(), &runner).expect("Failed to generate pk");
+    let vk = keygen_vk(&params, circuit).expect("Failed to generate vk");
+    let pinning = circuit.pinning();
+    let pk = keygen_pk(&params, vk.clone(), circuit).expect("Failed to generate pk");
     (vk, pk, pinning)
 }
 
