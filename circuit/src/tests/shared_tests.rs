@@ -27,7 +27,7 @@ use itertools::Itertools;
 
 use crate::{
     run::inner::{keygen, mock, run},
-    scaffold::AxiomCircuitScaffold,
+    scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     types::{AxiomCircuitParams, AxiomV2CircuitOutput, AxiomV2DataAndResults},
     utils::get_provider,
 };
@@ -36,7 +36,8 @@ const NUM_BYTES_ACCUMULATOR: usize = 64;
 
 pub fn mock_test<S: AxiomCircuitScaffold<Http, Fr>>(params: AxiomCircuitParams) {
     let client = get_provider();
-    mock::<_, S>(client, params, None);
+    let mut runner = AxiomCircuit::<_, _, S>::new(client, params);
+    mock::<_, S>(&mut runner);
 }
 
 pub fn single_instance_test(
@@ -157,7 +158,8 @@ pub fn check_compute_proof_and_query_format<S: AxiomCircuitScaffold<Http, Fr>>(
     is_aggregation: bool,
 ) {
     let client = get_provider();
-    let (vk, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
+    let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params.clone());
+    let (vk, pk, pinning) = keygen::<_, S>(&mut runner);
     let output = run::<_, S>(client, pinning, None, pk);
     check_compute_proof_format(output.clone(), is_aggregation);
     check_compute_query_format(output, params, vk);

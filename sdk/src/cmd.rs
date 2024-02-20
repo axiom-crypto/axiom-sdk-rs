@@ -51,6 +51,8 @@ pub struct RawCircuitParams {
     pub lookup_bits: Option<usize>,
     pub num_rlc_columns: Option<usize>,
     pub keccak_rows_per_round: Option<usize>,
+    pub max_results: Option<usize>,
+    pub max_subqueries: Option<usize>,
 }
 
 impl std::fmt::Display for SnarkCmd {
