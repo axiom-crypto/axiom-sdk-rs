@@ -56,7 +56,7 @@ impl<F: Field, const N: usize> RawInput<F> for [u8; N] {
     fn convert(&self) -> Self::FEType<F> {
         let mut res = [F::ZERO; N];
         for i in 0..N {
-            res[i] = F::from_u128(self[i] as u128);
+            res[i] = F::from(self[i] as u64);
         }
         res
     }
@@ -67,7 +67,7 @@ impl<F: Field, const N: usize> RawInput<F> for [u64; N] {
     fn convert(&self) -> Self::FEType<F> {
         let mut res = [F::ZERO; N];
         for i in 0..N {
-            res[i] = F::from_u128(self[i] as u128);
+            res[i] = F::from(self[i]);
         }
         res
     }
@@ -78,7 +78,7 @@ impl<F: Field, const N: usize> RawInput<F> for [usize; N] {
     fn convert(&self) -> Self::FEType<F> {
         let mut res = [F::ZERO; N];
         for i in 0..N {
-            res[i] = F::from_u128(self[i] as u128);
+            res[i] = F::from(self[i] as u64);
         }
         res
     }
@@ -89,7 +89,7 @@ impl<F: Field, const N: usize> RawInput<F> for FixLenVec<usize, N> {
     fn convert(&self) -> Self::FEType<F> {
         let mut res = [F::ZERO; N];
         for i in 0..N {
-            res[i] = F::from_u128(self.0[i] as u128);
+            res[i] = F::from(self.0[i] as u64);
         }
         res
     }
