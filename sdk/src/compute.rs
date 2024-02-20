@@ -194,7 +194,9 @@ where
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        mock::<Http, Self>(provider, params, converted_input);
+        let mut runner =
+            AxiomCircuit::<_, _, Self>::new(provider, params).use_inputs(converted_input);
+        mock::<Http, Self>(&mut runner);
     }
 
     /// Run key generation and return the proving and verifying keys, and the circuit pinning
@@ -208,7 +210,8 @@ where
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
-        keygen::<Http, Self>(provider, params, None)
+        let mut runner = AxiomCircuit::<_, _, Self>::new(provider, params);
+        keygen::<Http, Self>(&mut runner)
     }
 
     /// Run the prover and return the resulting snark
