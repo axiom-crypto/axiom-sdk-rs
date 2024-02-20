@@ -6,6 +6,7 @@ use axiom_circuit::{
         halo2_base::{gates::RangeChip, safe_types::SafeTypeChip, AssignedValue, Context},
         keccak::promise::{KeccakFixLenCall, KeccakVarLenCall},
         rlc::circuit::builder::RlcCircuitBuilder,
+        utils::uint_to_bytes_be,
     },
     subquery::caller::SubqueryCaller,
     utils::{from_hi_lo, to_hi_lo},
@@ -76,6 +77,22 @@ impl<'a> AxiomAPI<'a> {
     pub fn to_hi_lo(&mut self, val: AssignedValue<Fr>) -> HiLo<AssignedValue<Fr>> {
         let ctx = self.builder.base.main(0);
         to_hi_lo(ctx, self.range, val)
+    }
+
+    /// Decomposes a `AssignedValue<Fr>` into bytes, in big-endian, and returns the bytes.
+    ///
+    /// * `uint` - The `AssignedValue<Fr>` object to convert.
+    /// * `num_bytes` - The number of bytes in `uint`.
+    pub fn to_bytes_be(
+        &mut self,
+        uint: AssignedValue<Fr>,
+        num_bytes: usize,
+    ) -> Vec<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        uint_to_bytes_be(ctx, self.range, &uint, num_bytes)
+            .iter()
+            .map(|x| *x.as_ref())
+            .collect()
     }
 
     /// Returns an [Account] builder given block number and address.
