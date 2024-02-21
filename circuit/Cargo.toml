@@ -10,6 +10,7 @@ license = "MIT"
 [dependencies]
 axiom-codec = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop" }
 axiom-query = { git = "ssh://git@github.com/axiom-crypto/axiom-eth-working.git", branch = "develop" }
+axiom-components = { git = "ssh://git@github.com/axiom-crypto/axiom-components.git", branch = "develop" }
 ethers = "2.0"
 anyhow = "1.0.75"
 tokio = "1.34.0"

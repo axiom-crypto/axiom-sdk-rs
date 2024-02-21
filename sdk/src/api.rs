@@ -7,7 +7,7 @@ use axiom_circuit::{
         keccak::promise::{KeccakFixLenCall, KeccakVarLenCall},
         rlc::circuit::builder::RlcCircuitBuilder,
     },
-    subquery::caller::SubqueryCaller,
+    subquery::{caller::SubqueryCaller, types::ECDSAComponentInput},
     utils::{from_hi_lo, to_hi_lo},
 };
 use ethers::providers::Http;
@@ -153,6 +153,27 @@ impl<'a> AxiomAPI<'a> {
     pub fn get_tx(&mut self, block_number: AssignedValue<Fr>, tx_idx: AssignedValue<Fr>) -> Tx {
         let ctx = self.builder.base.main(0);
         get_tx(ctx, self.subquery_caller.clone(), block_number, tx_idx)
+    }
+
+    pub fn ecdsa_sig_verify(
+        &mut self,
+        pubkey: (HiLo<AssignedValue<Fr>>, HiLo<AssignedValue<Fr>>),
+        r: HiLo<AssignedValue<Fr>>,
+        s: HiLo<AssignedValue<Fr>>,
+        msg_hash: HiLo<AssignedValue<Fr>>,
+    ) -> HiLo<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        let subquery_caller = self.subquery_caller.clone();
+        let mut subquery_caller = subquery_caller.lock().unwrap();
+
+        let input = ECDSAComponentInput {
+            pubkey,
+            r,
+            s,
+            msg_hash,
+        };
+
+        subquery_caller.call(ctx, input)
     }
 
     pub fn keccak_fix_len(&mut self, bytes: Vec<AssignedValue<Fr>>) -> HiLo<AssignedValue<Fr>> {

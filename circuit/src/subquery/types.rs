@@ -10,6 +10,7 @@ use axiom_codec::{
     utils::native::{decode_field_to_addr, decode_hilo_to_h256},
     HiLo,
 };
+pub use axiom_components::ecdsa::ECDSAComponentInput;
 use axiom_query::axiom_eth::{halo2_base::AssignedValue, Field};
 use ethers::types::{BigEndianHash, H256};
 use serde::{Serialize, Serializer};
@@ -161,6 +162,7 @@ impl Serialize for RawSubquery {
             AnySubquery::Transaction(ref inner) => inner.serialize(serializer),
             AnySubquery::Receipt(ref inner) => inner.serialize(serializer),
             AnySubquery::SolidityNestedMapping(ref inner) => inner.serialize(serializer),
+            AnySubquery::ECDSA(ref inner) => inner.serialize(serializer),
         }
     }
 }
