@@ -121,8 +121,8 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let client = get_provider();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
     let (_, pk, pinning) = keygen::<_, S>(&mut runner);
-    // let (_, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let snark = prove::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let snark = prove::<_, S>(&mut runner, pk);
     agg_circuit_mock(agg_circuit_params, snark);
 }
 
@@ -142,8 +142,8 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circui
     let results = runner.scaffold_output();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
     let (_, pk, pinning) = keygen::<_, S>(&mut runner);
-    // let (_, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let snark = prove::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let snark = prove::<_, S>(&mut runner, pk);
     let agg_circuit =
         create_aggregation_circuit(agg_circuit_params, snark.clone(), CircuitBuilderStage::Mock);
     let instances = agg_circuit.instances();
@@ -169,8 +169,8 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let client = get_provider();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
     let (_, pk, pinning) = keygen::<_, S>(&mut runner);
-    // let (_vk, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let output = run::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let output = run::<_, S>(&mut runner, pk);
     let (agg_vk, agg_pk, agg_break_points) =
         agg_circuit_keygen(agg_circuit_params, output.snark.clone());
     let final_output = agg_circuit_run(
@@ -179,6 +179,7 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
         agg_pk,
         agg_break_points,
         output.data,
+        runner.max_user_outputs,
     );
     let circuit = create_aggregation_circuit(
         agg_circuit_params,

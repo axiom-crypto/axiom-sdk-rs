@@ -89,8 +89,8 @@ pub struct AxiomCircuit<F: Field, P: JsonRpcClient, A: AxiomCircuitScaffold<P, F
     output: RefCell<AxiomV2DataAndResults>,
     keccak_call_collector: RefCell<KeccakCallCollector<F>>,
     keccak_rows_per_round: usize,
-    max_user_outputs: usize,
-    max_user_subqueries: usize,
+    pub(crate) max_user_outputs: usize,
+    pub(crate) max_user_subqueries: usize,
 }
 
 impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCircuit<F, P, A> {
