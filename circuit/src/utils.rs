@@ -39,11 +39,12 @@ pub fn build_axiom_v2_compute_query(
     snark: Snark,
     params: AxiomCircuitParams,
     results: AxiomV2DataAndResults,
+    max_user_outputs: usize,
 ) -> AxiomV2ComputeQuery {
     let rlc_keccak_params = RlcKeccakCircuitParams::from(params);
     let rlc_params = rlc_keccak_params.clone().rlc;
     let metadata =
-        get_metadata_from_protocol(&snark.protocol, rlc_params, USER_MAX_OUTPUTS).unwrap();
+        get_metadata_from_protocol(&snark.protocol, rlc_params, max_user_outputs).unwrap();
     let k = rlc_keccak_params.k();
     let partial_vk = get_onchain_vk_from_protocol(&snark.protocol, metadata.clone());
     let partial_vk_output = write_onchain_vkey(&partial_vk).unwrap();

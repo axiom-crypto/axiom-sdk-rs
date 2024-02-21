@@ -160,7 +160,8 @@ pub fn check_compute_proof_and_query_format<S: AxiomCircuitScaffold<Http, Fr>>(
     let client = get_provider();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params.clone());
     let (vk, pk, pinning) = keygen::<_, S>(&mut runner);
-    let output = run::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let output = run::<_, S>(&mut runner, pk);
     check_compute_proof_format(output.clone(), is_aggregation);
     check_compute_query_format(output, params, vk);
 }

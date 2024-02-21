@@ -4,6 +4,7 @@ use std::{
 };
 
 use axiom_circuit::{
+    axiom_codec::constants::{USER_MAX_OUTPUTS, USER_MAX_SUBQUERIES},
     axiom_eth::{
         halo2_base::{gates::RangeChip, AssignedValue},
         halo2_proofs::plonk::{ProvingKey, VerifyingKey},
@@ -70,6 +71,8 @@ pub struct AxiomCompute<A: AxiomComputeFn> {
     params: Option<AxiomCircuitParams>,
     pinning: Option<AxiomCircuitPinning>,
     input: Option<A::LogicInput>,
+    max_user_outputs: usize,
+    max_user_subqueries: usize,
 }
 
 impl<A: AxiomComputeFn> Default for AxiomCompute<A> {
@@ -79,6 +82,8 @@ impl<A: AxiomComputeFn> Default for AxiomCompute<A> {
             params: None,
             input: None,
             pinning: None,
+            max_user_outputs: USER_MAX_OUTPUTS,
+            max_user_subqueries: USER_MAX_SUBQUERIES,
         }
     }
 }
@@ -151,6 +156,16 @@ where
         self.pinning = Some(pinning);
     }
 
+    // Set the maximum number of user outputs
+    pub fn set_max_user_outputs(&mut self, max_user_outputs: usize) {
+        self.max_user_outputs = max_user_outputs;
+    }
+
+    // Set the maximum number of user subqueries
+    pub fn set_max_user_subqueries(&mut self, max_user_subqueries: usize) {
+        self.max_user_subqueries = max_user_subqueries;
+    }
+
     /// Use the given provider for the AxiomCompute instance
     pub fn use_provider(mut self, provider: Provider<Http>) -> Self {
         self.set_provider(provider);
@@ -175,6 +190,18 @@ where
         self
     }
 
+    /// Use the given maximum number of user outputs
+    pub fn use_max_user_outputs(mut self, max_user_outputs: usize) -> Self {
+        self.set_max_user_outputs(max_user_outputs);
+        self
+    }
+
+    /// Use the given maximum number of user subqueries
+    pub fn use_max_user_subqueries(mut self, max_user_subqueries: usize) -> Self {
+        self.set_max_user_subqueries(max_user_subqueries);
+        self
+    }
+
     /// Check that all the necessary configurations are set
     fn check_all_set(&self) {
         assert!(self.provider.is_some());
@@ -194,8 +221,10 @@ where
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        let mut runner =
-            AxiomCircuit::<_, _, Self>::new(provider, params).use_inputs(converted_input);
+        let mut runner = AxiomCircuit::<_, _, Self>::new(provider, params)
+            .use_inputs(converted_input)
+            .use_max_user_outputs(self.max_user_outputs)
+            .use_max_user_subqueries(self.max_user_subqueries);
         mock::<Http, Self>(&mut runner);
     }
 
@@ -210,7 +239,9 @@ where
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
-        let mut runner = AxiomCircuit::<_, _, Self>::new(provider, params);
+        let mut runner = AxiomCircuit::<_, _, Self>::new(provider, params)
+            .use_max_user_outputs(self.max_user_outputs)
+            .use_max_user_subqueries(self.max_user_subqueries);
         keygen::<Http, Self>(&mut runner)
     }
 
@@ -219,7 +250,13 @@ where
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        prove::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
+        let mut runner =
+            AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
+                .use_inputs(converted_input)
+                .use_max_user_outputs(self.max_user_outputs)
+                .use_max_user_subqueries(self.max_user_subqueries);
+
+        prove::<Http, Self>(&mut runner, pk)
     }
 
     /// Run the prover and return the outputs needed to make an on-chain compute query
@@ -227,7 +264,12 @@ where
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        run::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
+        let mut runner =
+            AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
+                .use_inputs(converted_input)
+                .use_max_user_outputs(self.max_user_outputs)
+                .use_max_user_subqueries(self.max_user_subqueries);
+        run::<Http, Self>(&mut runner, pk)
     }
 
     /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait
@@ -235,7 +277,11 @@ where
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
         let params = self.params.clone().unwrap();
+        let converted_input = self.input.clone().map(|input| input.into());
         AxiomCircuit::new(provider, params)
+            .use_max_user_outputs(self.max_user_outputs)
+            .use_max_user_subqueries(self.max_user_subqueries)
+            .use_inputs(converted_input)
     }
 }
 
