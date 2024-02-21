@@ -7,6 +7,7 @@ use std::{
 };
 
 use axiom_circuit::{
+    axiom_codec::constants::{USER_MAX_OUTPUTS, USER_MAX_SUBQUERIES},
     axiom_eth::{
         halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
         halo2_proofs::{plonk::ProvingKey, SerdeFormat},
@@ -51,7 +52,7 @@ pub struct RawCircuitParams {
     pub lookup_bits: Option<usize>,
     pub num_rlc_columns: Option<usize>,
     pub keccak_rows_per_round: Option<usize>,
-    pub max_results: Option<usize>,
+    pub max_outputs: Option<usize>,
     pub max_subqueries: Option<usize>,
 }
 
@@ -139,9 +140,16 @@ where
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
 
+    let mut max_user_outputs = USER_MAX_OUTPUTS;
+    let mut max_subqueries = USER_MAX_SUBQUERIES;
+
     let params = if let Some(config) = cli.config {
         let f = File::open(config).unwrap();
         let raw_params: RawCircuitParams = serde_json::from_reader(f).unwrap();
+
+        max_user_outputs = raw_params.max_outputs.unwrap_or(USER_MAX_OUTPUTS);
+        max_subqueries = raw_params.max_subqueries.unwrap_or(USER_MAX_SUBQUERIES);
+
         let base_params = BaseCircuitParams {
             k: raw_params.k,
             num_advice_per_phase: raw_params.num_advice_per_phase,
@@ -184,12 +192,16 @@ where
                 .use_inputs(input)
                 .use_params(params)
                 .use_provider(provider)
+                .use_max_user_outputs(max_user_outputs)
+                .use_max_user_subqueries(max_subqueries)
                 .mock();
         }
         SnarkCmd::Keygen => {
             let circuit = AxiomCompute::<A>::new()
                 .use_params(params)
-                .use_provider(provider);
+                .use_provider(provider)
+                .use_max_user_outputs(max_user_outputs)
+                .use_max_user_subqueries(max_subqueries);
             let (_, pkey, pinning) = circuit.keygen();
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
             if pk_path.exists() {
@@ -225,7 +237,9 @@ where
             let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
             let compute = AxiomCompute::<A>::new()
                 .use_pinning(pinning.clone())
-                .use_provider(provider);
+                .use_provider(provider)
+                .use_max_user_outputs(max_user_outputs)
+                .use_max_user_subqueries(max_subqueries);
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
             let mut f = File::open(pk_path).unwrap();
             let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
@@ -242,7 +256,9 @@ where
             let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
             let compute = AxiomCompute::<A>::new()
                 .use_pinning(pinning.clone())
-                .use_provider(provider);
+                .use_provider(provider)
+                .use_max_user_outputs(max_user_outputs)
+                .use_max_user_subqueries(max_subqueries);
             let pk_path = data_path.join(PathBuf::from("pk.bin"));
             let mut f = File::open(pk_path).unwrap();
             let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
@@ -262,7 +278,7 @@ where
             }
             let f = File::create(&output_json_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {output_json_path:?}"));
-            serde_json::to_writer_pretty(&f, &output.data).expect("Writing output should not fail");
+            serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
         }
     }
 }
