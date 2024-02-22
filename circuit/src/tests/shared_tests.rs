@@ -1,6 +1,9 @@
 use axiom_codec::{
     constants::USER_MAX_OUTPUTS,
-    types::field_elements::{FieldSubqueryResult, SUBQUERY_RESULT_LEN},
+    types::{
+        field_elements::{FieldSubqueryResult, SUBQUERY_RESULT_LEN},
+        native::SubqueryResult,
+    },
     utils::native::decode_hilo_to_h256,
     HiLo,
 };
@@ -18,11 +21,13 @@ use axiom_query::{
         snark_verifier_sdk::{NativeLoader, Snark, BITS, LIMBS},
         utils::{keccak::decorator::RlcKeccakCircuitParams, snark_verifier::NUM_FE_ACCUMULATOR},
     },
+    components::results::types::LogicOutputResultsRoot,
     verify_compute::utils::{
-        get_metadata_from_protocol, get_onchain_vk_from_vk, write_onchain_vkey,
+        get_metadata_from_protocol, get_onchain_vk_from_vk, reconstruct_snark_from_compute_query,
+        write_onchain_vkey,
     },
 };
-use ethers::providers::Http;
+use ethers::{providers::Http, types::Bytes};
 use itertools::Itertools;
 
 use crate::{
@@ -83,6 +88,28 @@ pub fn single_instance_test(
         &instances[num_user_output_fe + SUBQUERY_RESULT_LEN..],
         &vec![Fr::from(0); num_subquery_fe - SUBQUERY_RESULT_LEN]
     );
+}
+
+pub fn get_logic_output_results_root(output: AxiomV2CircuitOutput) -> LogicOutputResultsRoot {
+    let results = output
+        .data
+        .data_query
+        .iter()
+        .map(|subquery| SubqueryResult {
+            subquery: subquery.subquery_data.clone().0.into(),
+            value: Bytes::from(subquery.val.as_bytes().to_vec()),
+        })
+        .collect_vec();
+    let subquery_hashes = results
+        .iter()
+        .map(|subquery| subquery.keccak())
+        .collect_vec();
+    let num_subqueries = results.len();
+    LogicOutputResultsRoot {
+        results,
+        subquery_hashes,
+        num_subqueries,
+    }
 }
 
 pub fn check_compute_proof_format(output: AxiomV2CircuitOutput, is_aggregation: bool) {
@@ -151,6 +178,10 @@ pub fn check_compute_query_format(
         output.compute_query.result_len,
         output.data.compute_results.len() as u16
     );
+
+    let results = get_logic_output_results_root(output.clone());
+    let (snark, _) = reconstruct_snark_from_compute_query(results, output.compute_query).unwrap();
+    assert_eq!(snark.instances, output.snark.instances);
 }
 
 pub fn check_compute_proof_and_query_format<S: AxiomCircuitScaffold<Http, Fr>>(
