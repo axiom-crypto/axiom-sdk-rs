@@ -104,10 +104,10 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
             )
         }
     };
-    let output = AxiomV2CircuitOutput {
+    
+    AxiomV2CircuitOutput {
         compute_query,
         data: output,
         snark,
-    };
-    output
+    }
 }

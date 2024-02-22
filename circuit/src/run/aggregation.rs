@@ -76,10 +76,10 @@ pub fn agg_circuit_run(
         inner_output.clone(),
         max_user_outputs,
     );
-    let output = AxiomV2CircuitOutput {
+    
+    AxiomV2CircuitOutput {
         compute_query,
         data: inner_output,
         snark: agg_snark,
-    };
-    output
+    }
 }
