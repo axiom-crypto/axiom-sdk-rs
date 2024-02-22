@@ -1,7 +1,6 @@
 use std::env;
 
 use axiom_codec::{
-    constants::USER_MAX_OUTPUTS,
     types::native::{AxiomV2ComputeQuery, AxiomV2ComputeSnark},
     HiLo,
 };
