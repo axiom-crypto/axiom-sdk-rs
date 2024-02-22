@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use axiom_codec::HiLo;
+use axiom_codec::{constants::USER_MAX_OUTPUTS, HiLo};
 use axiom_query::{
     axiom_eth::{
         halo2_base::{
@@ -25,7 +25,7 @@ use ethers::providers::{Http, JsonRpcClient};
 use test_case::test_case;
 
 use super::{
-    shared_tests::{check_compute_proof_format, check_compute_query_format, single_instance_test},
+    shared_tests::single_instance_test,
     utils::{all_subqueries_call, mapping_call, receipt_call, storage_call, tx_call},
 };
 use crate::{
@@ -39,7 +39,7 @@ use crate::{
     subquery::caller::SubqueryCaller,
     tests::utils::{account_call, header_call, EmptyCircuitInput},
     types::AxiomCircuitParams,
-    utils::get_provider,
+    utils::{check_compute_proof_format, check_compute_query_format, get_provider},
     witness,
 };
 
@@ -191,6 +191,7 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
         final_output.clone(),
         AxiomCircuitParams::Base(circuit.builder.config_params),
         agg_vk,
+        USER_MAX_OUTPUTS,
     );
     // TEMP
     let kzg_params = gen_srs(agg_circuit_params.degree);

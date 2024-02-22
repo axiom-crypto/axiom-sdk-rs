@@ -17,6 +17,7 @@ use axiom_circuit::{
     },
     scaffold::AxiomCircuit,
     types::{AxiomCircuitParams, AxiomCircuitPinning},
+    utils::{check_compute_proof_format, check_compute_query_format},
 };
 pub use clap::Parser;
 use clap::Subcommand;
@@ -267,7 +268,7 @@ where
                 pinning.params,
             )
             .unwrap();
-            let output = compute.use_inputs(input).run(pk);
+            let output = compute.use_inputs(input).run(pk.clone());
             let output_path = data_path.join(PathBuf::from("output.snark"));
             let f = File::create(&output_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {output_path:?}"));
@@ -279,6 +280,10 @@ where
             let f = File::create(&output_json_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {output_json_path:?}"));
             serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
+
+            let vk = pk.get_vk();
+            check_compute_proof_format(output.clone(), false);
+            check_compute_query_format(output, params, vk.clone(), max_user_outputs);
         }
     }
 }
