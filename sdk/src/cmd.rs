@@ -17,7 +17,6 @@ use axiom_circuit::{
     },
     scaffold::AxiomCircuit,
     types::{AxiomCircuitParams, AxiomCircuitPinning},
-    utils::{check_compute_proof_format, check_compute_query_format},
 };
 pub use clap::Parser;
 use clap::Subcommand;
@@ -37,8 +36,6 @@ pub enum SnarkCmd {
     Mock,
     /// Generate new proving & verifying keys
     Keygen,
-    /// Generate a new proof
-    Prove,
     /// Generate an Axiom compute query
     Run,
 }
@@ -62,7 +59,6 @@ impl std::fmt::Display for SnarkCmd {
         match self {
             Self::Mock => write!(f, "mock"),
             Self::Keygen => write!(f, "keygen"),
-            Self::Prove => write!(f, "prove"),
             Self::Run => write!(f, "run"),
         }
     }
@@ -113,7 +109,7 @@ where
 {
     let cli = Cli::parse();
     match cli.command {
-        SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::Run => {
+        SnarkCmd::Mock | SnarkCmd::Run => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
             }
@@ -232,25 +228,6 @@ where
             serde_json::to_writer_pretty(&f, &pinning)
                 .expect("writing circuit pinning should not fail");
         }
-        SnarkCmd::Prove => {
-            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
-            let f = File::open(pinning_path).unwrap();
-            let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
-            let compute = AxiomCompute::<A>::new()
-                .use_pinning(pinning.clone())
-                .use_provider(provider)
-                .use_max_user_outputs(max_user_outputs)
-                .use_max_user_subqueries(max_subqueries);
-            let pk_path = data_path.join(PathBuf::from("pk.bin"));
-            let mut f = File::open(pk_path).unwrap();
-            let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
-                &mut f,
-                SerdeFormat::RawBytes,
-                pinning.params,
-            )
-            .unwrap();
-            compute.use_inputs(input).prove(pk);
-        }
         SnarkCmd::Run => {
             let pinning_path = data_path.join(PathBuf::from("pinning.json"));
             let f = File::open(pinning_path).unwrap();
@@ -280,10 +257,6 @@ where
             let f = File::create(&output_json_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {output_json_path:?}"));
             serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
-
-            let vk = pk.get_vk();
-            check_compute_proof_format(output.clone(), false);
-            check_compute_query_format(output, params, vk.clone(), max_user_outputs);
         }
     }
 }

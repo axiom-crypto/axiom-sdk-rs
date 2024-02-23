@@ -7,18 +7,17 @@ use axiom_circuit::{
     axiom_codec::constants::{USER_MAX_OUTPUTS, USER_MAX_SUBQUERIES},
     axiom_eth::{
         halo2_base::{gates::RangeChip, AssignedValue},
-        halo2_proofs::plonk::{ProvingKey, VerifyingKey},
+        halo2_proofs::plonk::{Circuit, ProvingKey, VerifyingKey},
         halo2curves::bn256::G1Affine,
         rlc::circuit::builder::RlcCircuitBuilder,
-        snark_verifier_sdk::Snark,
         utils::hilo::HiLo,
     },
     input::flatten::InputFlatten,
-    run::inner::{keygen, mock, prove, run},
+    run::inner::{keygen, mock, run},
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     subquery::caller::SubqueryCaller,
     types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
-    utils::to_hi_lo,
+    utils::{check_compute_proof_format, check_compute_query_format, to_hi_lo, verify_snark, DK},
 };
 use ethers::providers::{Http, Provider};
 use serde::{de::DeserializeOwned, Serialize};
@@ -245,20 +244,6 @@ where
         keygen::<Http, Self>(&mut runner)
     }
 
-    /// Run the prover and return the resulting snark
-    pub fn prove(&self, pk: ProvingKey<G1Affine>) -> Snark {
-        self.check_all_set();
-        let provider = self.provider.clone().unwrap();
-        let converted_input = self.input.clone().map(|input| input.into());
-        let mut runner =
-            AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
-                .use_inputs(converted_input)
-                .use_max_user_outputs(self.max_user_outputs)
-                .use_max_user_subqueries(self.max_user_subqueries);
-
-        prove::<Http, Self>(&mut runner, pk)
-    }
-
     /// Run the prover and return the outputs needed to make an on-chain compute query
     pub fn run(&self, pk: ProvingKey<G1Affine>) -> AxiomV2CircuitOutput {
         self.check_all_set();
@@ -269,7 +254,18 @@ where
                 .use_inputs(converted_input)
                 .use_max_user_outputs(self.max_user_outputs)
                 .use_max_user_subqueries(self.max_user_subqueries);
-        run::<Http, Self>(&mut runner, pk)
+        let output = run::<Http, Self>(&mut runner, pk.clone());
+        let vk = pk.get_vk();
+        check_compute_proof_format(output.clone(), false);
+        check_compute_query_format(
+            output.clone(),
+            runner.params(),
+            vk.clone(),
+            self.max_user_outputs,
+        );
+        verify_snark(&DK, &output.snark)
+            .expect("Client snark failed to verify. Make sure you are using the right KZG params.");
+        output
     }
 
     /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait
