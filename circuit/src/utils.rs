@@ -1,5 +1,6 @@
 use std::env;
 
+use anyhow::anyhow;
 use axiom_codec::{
     types::native::{AxiomV2ComputeQuery, AxiomV2ComputeSnark, SubqueryResult},
     utils::native::decode_hilo_to_h256,
@@ -14,12 +15,21 @@ use axiom_query::{
             QuantumCell::Constant,
         },
         halo2_proofs::plonk::VerifyingKey,
-        halo2curves::{bn256::G1Affine, group::GroupEncoding},
-        snark_verifier::pcs::{
-            kzg::{KzgAccumulator, LimbsEncoding},
-            AccumulatorEncoding,
+        halo2curves::{
+            bn256::{Bn256, G1Affine},
+            group::GroupEncoding,
         },
-        snark_verifier_sdk::{NativeLoader, Snark, BITS, LIMBS},
+        snark_verifier::{
+            pcs::{
+                kzg::{KzgAccumulator, KzgDecidingKey, LimbsEncoding},
+                AccumulatorEncoding,
+            },
+            verifier::{plonk::PlonkProof, SnarkVerifier},
+        },
+        snark_verifier_sdk::{
+            halo2::{PoseidonTranscript, POSEIDON_SPEC},
+            NativeLoader, PlonkVerifier, Snark, BITS, LIMBS, SHPLONK,
+        },
         utils::{keccak::decorator::RlcKeccakCircuitParams, snark_verifier::NUM_FE_ACCUMULATOR},
         Field,
     },
@@ -35,6 +45,7 @@ use ethers::{
     types::Bytes,
 };
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::One;
@@ -259,4 +270,34 @@ pub fn check_compute_query_format(
     let (snark, _) = reconstruct_snark_from_compute_query(results, output.compute_query).unwrap();
     assert_eq!(snark.instances, output.snark.instances);
     assert_eq!(snark.proof, output.snark.proof);
+}
+
+/// This verifies snark with poseidon transcript and **importantly** also checks the
+/// kzg accumulator from the public instances, if `snark` is aggregation circuit
+pub fn verify_snark(dk: &KzgDecidingKey<Bn256>, snark: &Snark) -> anyhow::Result<()> {
+    let mut transcript =
+        PoseidonTranscript::<NativeLoader, &[u8]>::from_spec(snark.proof(), POSEIDON_SPEC.clone());
+    let proof: PlonkProof<_, _, SHPLONK> =
+        PlonkVerifier::read_proof(dk, &snark.protocol, &snark.instances, &mut transcript)
+            .map_err(|_| anyhow!("Failed to read PlonkProof"))?;
+    PlonkVerifier::verify(dk, &snark.protocol, &snark.instances, &proof)
+        .map_err(|_| anyhow!("PlonkVerifier failed"))?;
+    Ok(())
+}
+
+lazy_static! {
+
+    /// TODO: this is also stored in the pinning jsons. We should read it from the pinning if possible.
+    /// This commits to the trusted setup used to generate all proving keys.
+    /// This MUST be updated whenever the trusted setup is changed.
+    pub static ref DK: KzgDecidingKey<Bn256> = serde_json::from_str(r#"
+          {
+            "_marker": null,
+            "g2": "edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19",
+            "s_g2": "0016e2a0605f771222637bae45148c8faebb4598ee98f30f20f790a0c3c8e02a7bf78bf67c4aac19dcc690b9ca0abef445d9a576c92ad6041e6ef1413ca92a17",
+            "svk": {
+              "g": "0100000000000000000000000000000000000000000000000000000000000000"
+            }
+          }
+       "#).unwrap();
 }
