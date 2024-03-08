@@ -62,6 +62,7 @@ pub fn agg_circuit_run(
     pk: ProvingKey<G1Affine>,
     break_points: MultiPhaseThreadBreakPoints,
     inner_output: AxiomV2DataAndResults,
+    max_user_outputs: usize,
 ) -> AxiomV2CircuitOutput {
     let params = gen_srs(agg_circuit_params.degree);
     let circuit =
@@ -73,11 +74,12 @@ pub fn agg_circuit_run(
         agg_snark.clone(),
         AxiomCircuitParams::Base(agg_circuit_params),
         inner_output.clone(),
+        max_user_outputs,
     );
-    let output = AxiomV2CircuitOutput {
+    
+    AxiomV2CircuitOutput {
         compute_query,
         data: inner_output,
         snark: agg_snark,
-    };
-    output
+    }
 }

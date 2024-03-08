@@ -11,26 +11,30 @@ pub trait InputFlatten<T: Copy>: Sized {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FixLenVec<T: Copy, const N: usize> {
-    pub vec: Vec<T>,
+pub struct FixLenVec<T: Copy + Default, const N: usize>(pub Vec<T>);
+
+impl<T: Copy + Default, const N: usize> Default for FixLenVec<T, N> {
+    fn default() -> Self {
+        Self(vec![T::default(); N])
+    }
 }
 
-impl<T: Copy, const N: usize> FixLenVec<T, N> {
+impl<T: Copy + Default, const N: usize> FixLenVec<T, N> {
     pub fn new(vec: Vec<T>) -> anyhow::Result<Self> {
         if vec.len() != N {
             anyhow::bail!("Invalid input length: {} != {}", vec.len(), N);
         }
-        Ok(FixLenVec { vec })
+        Ok(FixLenVec(vec))
     }
 
     pub fn into_inner(self) -> Vec<T> {
-        self.vec
+        self.0
     }
 }
 
-impl<T: Copy, const N: usize> From<Vec<T>> for FixLenVec<T, N> {
+impl<T: Copy + Default, const N: usize> From<Vec<T>> for FixLenVec<T, N> {
     fn from(vec: Vec<T>) -> Self {
-        Self { vec }
+        Self(vec)
     }
 }
 
@@ -46,14 +50,14 @@ macro_rules! check_input_length {
     };
 }
 
-impl<T: Copy, const N: usize> InputFlatten<T> for FixLenVec<T, N> {
+impl<T: Copy + Default, const N: usize> InputFlatten<T> for FixLenVec<T, N> {
     const NUM_FE: usize = N;
     fn flatten_vec(&self) -> Vec<T> {
-        self.vec.clone()
+        self.0.clone()
     }
     fn unflatten(vec: Vec<T>) -> Result<Self> {
         check_input_length!(vec);
-        Ok(FixLenVec { vec })
+        Ok(FixLenVec(vec))
     }
 }
 

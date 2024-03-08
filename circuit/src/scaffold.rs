@@ -48,6 +48,7 @@ use axiom_query::axiom_eth::{
 };
 use ethers::providers::{JsonRpcClient, Provider};
 use itertools::Itertools;
+use log::{info, warn};
 
 use crate::{
     input::flatten::InputFlatten,
@@ -88,8 +89,8 @@ pub struct AxiomCircuit<F: Field, P: JsonRpcClient, A: AxiomCircuitScaffold<P, F
     output: RefCell<AxiomV2DataAndResults>,
     keccak_call_collector: RefCell<KeccakCallCollector<F>>,
     keccak_rows_per_round: usize,
-    max_user_outputs: usize,
-    max_user_subqueries: usize,
+    pub(crate) max_user_outputs: usize,
+    pub(crate) max_user_subqueries: usize,
 }
 
 impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCircuit<F, P, A> {
@@ -266,6 +267,13 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             .into_iter()
             .flat_map(|hilo| hilo.flatten())
             .collect::<Vec<_>>();
+        if flattened_callback.len() > self.output_num_instances() {
+            warn!(
+                "Callback result capacity exceeded: {} > {}",
+                flattened_callback.len(),
+                self.output_num_instances()
+            );
+        }
         flattened_callback.resize_with(self.output_num_instances(), || {
             self.builder
                 .borrow_mut()
@@ -275,6 +283,13 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         });
 
         let mut subquery_instances = subquery_caller.lock().unwrap().instances().clone();
+        if subquery_instances.len() > self.subquery_num_instances() {
+            warn!(
+                "Subquery result capacity exceeded: {} > {}",
+                subquery_instances.len(),
+                self.subquery_num_instances()
+            );
+        }
         subquery_instances.resize_with(self.subquery_num_instances(), || {
             self.builder
                 .borrow_mut()
@@ -284,6 +299,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         });
 
         flattened_callback.extend(subquery_instances);
+        info!("instance len: {}", flattened_callback.len());
         let instances = vec![flattened_callback];
         self.builder.borrow_mut().base.assigned_instances = instances.clone();
 
