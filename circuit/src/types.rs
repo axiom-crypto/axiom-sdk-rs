@@ -38,6 +38,8 @@ impl Default for AxiomCircuitParams {
 pub struct AxiomCircuitPinning {
     pub params: AxiomCircuitParams,
     pub break_points: RlcThreadBreakPoints,
+    pub max_user_outputs: usize,
+    pub max_user_subqueries: usize,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]

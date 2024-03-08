@@ -25,7 +25,7 @@ use ethers::providers::{Http, JsonRpcClient};
 use test_case::test_case;
 
 use super::{
-    shared_tests::{check_compute_proof_format, check_compute_query_format, single_instance_test},
+    shared_tests::single_instance_test,
     utils::{all_subqueries_call, ecdsa_call, mapping_call, receipt_call, storage_call, tx_call},
 };
 use crate::{
@@ -121,9 +121,10 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
-    let (_, pk, pinning) = keygen::<_, S>(&mut runner);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
     let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
-    let snark = prove::<_, S>(&mut runner, pk);
+    let snark = prove::<_, S>(&mut runner, pk, &kzg_params);
     agg_circuit_mock(agg_circuit_params, snark);
 }
 
@@ -143,9 +144,10 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circui
     let subquery_fe = runner.subquery_num_instances();
     let results = runner.scaffold_output();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
-    let (_, pk, pinning) = keygen::<_, S>(&mut runner);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
     let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
-    let snark = prove::<_, S>(&mut runner, pk);
+    let snark = prove::<_, S>(&mut runner, pk, &kzg_params);
     let agg_circuit =
         create_aggregation_circuit(agg_circuit_params, snark.clone(), CircuitBuilderStage::Mock);
     let instances = agg_circuit.instances();
@@ -170,9 +172,10 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
-    let (_, pk, pinning) = keygen::<_, S>(&mut runner);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
     let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
-    let output = run::<_, S>(&mut runner, pk);
+    let output = run::<_, S>(&mut runner, &pk, &kzg_params);
     let (agg_vk, agg_pk, agg_break_points) =
         agg_circuit_keygen(agg_circuit_params, output.snark.clone());
     let final_output = agg_circuit_run(
@@ -181,6 +184,7 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
         agg_pk,
         agg_break_points,
         output.data,
+        USER_MAX_OUTPUTS,
     );
     let circuit = create_aggregation_circuit(
         agg_circuit_params,
