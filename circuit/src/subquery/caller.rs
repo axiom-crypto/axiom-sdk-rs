@@ -100,15 +100,14 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
     ) -> HiLo<AssignedValue<F>> {
         let result = if self.mock_subquery_call {
             H256::zero()
-        } else if !self.subquery_cache.contains_key(&subquery.any_subquery()) {
+        } else if let std::collections::hash_map::Entry::Vacant(e) =
+            self.subquery_cache.entry(subquery.any_subquery())
+        {
             let val = subquery.fetch(&self.provider).unwrap();
-            self.subquery_cache.insert(subquery.any_subquery(), val);
+            e.insert(val);
             val
         } else {
-            self.subquery_cache
-                .get(&subquery.any_subquery())
-                .unwrap()
-                .clone()
+            *self.subquery_cache.get(&subquery.any_subquery()).unwrap()
         };
         let any_subquery = subquery.any_subquery();
         let val = (any_subquery.clone(), result);

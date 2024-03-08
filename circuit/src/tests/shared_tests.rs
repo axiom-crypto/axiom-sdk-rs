@@ -3,6 +3,7 @@ use axiom_codec::{
     types::field_elements::{FieldSubqueryResult, SUBQUERY_RESULT_LEN},
 };
 use axiom_query::axiom_eth::{
+    halo2_base::utils::fs::gen_srs,
     halo2curves::bn256::{Fr, G1Affine},
     snark_verifier::pcs::{kzg::LimbsEncoding, AccumulatorEncoding},
     snark_verifier_sdk::{NativeLoader, Snark, BITS, LIMBS},
@@ -75,9 +76,10 @@ pub fn check_compute_proof_and_query_format<S: AxiomCircuitScaffold<Http, Fr>>(
 ) {
     let client = get_provider();
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params.clone());
-    let (vk, pk, pinning) = keygen::<_, S>(&mut runner);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (vk, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
     let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
-    let output = run::<_, S>(&mut runner, pk);
+    let output = run::<_, S>(&mut runner, &pk, &kzg_params);
     check_compute_proof_format(output.clone(), is_aggregation);
     check_compute_query_format(output, params, vk, USER_MAX_OUTPUTS);
 }

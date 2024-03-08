@@ -7,8 +7,11 @@ use axiom_circuit::{
     axiom_codec::constants::{USER_MAX_OUTPUTS, USER_MAX_SUBQUERIES},
     axiom_eth::{
         halo2_base::{gates::RangeChip, AssignedValue},
-        halo2_proofs::plonk::{Circuit, ProvingKey, VerifyingKey},
-        halo2curves::bn256::G1Affine,
+        halo2_proofs::{
+            plonk::{ProvingKey, VerifyingKey},
+            poly::kzg::commitment::ParamsKZG,
+        },
+        halo2curves::bn256::{Bn256, G1Affine},
         rlc::circuit::builder::RlcCircuitBuilder,
         utils::hilo::HiLo,
     },
@@ -17,7 +20,7 @@ use axiom_circuit::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     subquery::caller::SubqueryCaller,
     types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
-    utils::{check_compute_proof_format, check_compute_query_format, to_hi_lo, verify_snark, DK},
+    utils::to_hi_lo,
 };
 use ethers::providers::{Http, Provider};
 use serde::{de::DeserializeOwned, Serialize};
@@ -70,6 +73,7 @@ pub struct AxiomCompute<A: AxiomComputeFn> {
     params: Option<AxiomCircuitParams>,
     pinning: Option<AxiomCircuitPinning>,
     input: Option<A::LogicInput>,
+    kzg_params: Option<ParamsKZG<Bn256>>,
     max_user_outputs: usize,
     max_user_subqueries: usize,
 }
@@ -83,6 +87,7 @@ impl<A: AxiomComputeFn> Default for AxiomCompute<A> {
             pinning: None,
             max_user_outputs: USER_MAX_OUTPUTS,
             max_user_subqueries: USER_MAX_SUBQUERIES,
+            kzg_params: None,
         }
     }
 }
@@ -165,6 +170,11 @@ where
         self.max_user_subqueries = max_user_subqueries;
     }
 
+    /// Set the KZG parameters for the AxiomCompute instance
+    pub fn set_kzg_params(&mut self, kzg_params: ParamsKZG<Bn256>) {
+        self.kzg_params = Some(kzg_params);
+    }
+
     /// Use the given provider for the AxiomCompute instance
     pub fn use_provider(mut self, provider: Provider<Http>) -> Self {
         self.set_provider(provider);
@@ -198,6 +208,12 @@ where
     /// Use the given maximum number of user subqueries
     pub fn use_max_user_subqueries(mut self, max_user_subqueries: usize) -> Self {
         self.set_max_user_subqueries(max_user_subqueries);
+        self
+    }
+
+    /// Use the given KZG parameters for the AxiomCompute instance
+    pub fn use_kzg_params(mut self, kzg_params: ParamsKZG<Bn256>) -> Self {
+        self.set_kzg_params(kzg_params);
         self
     }
 
@@ -241,7 +257,8 @@ where
         let mut runner = AxiomCircuit::<_, _, Self>::new(provider, params)
             .use_max_user_outputs(self.max_user_outputs)
             .use_max_user_subqueries(self.max_user_subqueries);
-        keygen::<Http, Self>(&mut runner)
+        let kzg_params = self.kzg_params.clone().expect("KZG params not set");
+        keygen::<Http, Self>(&mut runner, &kzg_params)
     }
 
     /// Run the prover and return the outputs needed to make an on-chain compute query
@@ -254,18 +271,8 @@ where
                 .use_inputs(converted_input)
                 .use_max_user_outputs(self.max_user_outputs)
                 .use_max_user_subqueries(self.max_user_subqueries);
-        let output = run::<Http, Self>(&mut runner, pk.clone());
-        let vk = pk.get_vk();
-        check_compute_proof_format(output.clone(), false);
-        check_compute_query_format(
-            output.clone(),
-            runner.params(),
-            vk.clone(),
-            self.max_user_outputs,
-        );
-        verify_snark(&DK, &output.snark)
-            .expect("Client snark failed to verify. Make sure you are using the right KZG params.");
-        output
+        let kzg_params = self.kzg_params.clone().expect("KZG params not set");
+        run::<Http, Self>(&mut runner, &pk, &kzg_params)
     }
 
     /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait

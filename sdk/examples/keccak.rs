@@ -35,6 +35,5 @@ impl AxiomComputeFn for KeccakInput {
 }
 
 fn main() {
-    env_logger::init();
     run_cli::<KeccakInput>();
 }
