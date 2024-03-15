@@ -10,6 +10,7 @@ use axiom_query::axiom_eth::{
     utils::keccak::decorator::RlcKeccakCircuitParams,
 };
 use ethers::{providers::JsonRpcClient, types::Bytes};
+use log::info;
 
 use crate::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
@@ -28,6 +29,7 @@ pub fn mock<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let k = circuit_params.k();
     if circuit_params.keccak_rows_per_round > 0 {
         circuit.calculate_params();
+        info!("Calculated params: {:?}", circuit.params());
     }
     let instances = circuit.instances();
     MockProver::run(k as u32, circuit, instances)
@@ -47,6 +49,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     if circuit_params.keccak_rows_per_round > 0 {
         circuit.calculate_params();
+        info!("Calculated params: {:?}", circuit.params());
     }
     let vk = keygen_vk(params, circuit).expect("Failed to generate vk");
     let pinning = circuit.pinning();
@@ -63,6 +66,7 @@ pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     if circuit_params.keccak_rows_per_round > 0 {
         circuit.calculate_params();
+        info!("Calculated params: {:?}", circuit.params());
     }
     gen_snark_shplonk(params, &pk, circuit.clone(), None::<&str>)
 }
@@ -78,6 +82,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let output = circuit.scaffold_output();
     if circuit_params.keccak_rows_per_round > 0 {
         circuit.calculate_params();
+        info!("Calculated params: {:?}", circuit.params());
     }
     let max_user_outputs = circuit.max_user_outputs;
     let snark = gen_snark_shplonk(params, pk, circuit.clone(), None::<&str>);
