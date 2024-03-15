@@ -15,7 +15,10 @@ use axiom_query::axiom_eth::{
 use crate::{
     aggregation::create_aggregation_circuit,
     types::{AxiomCircuitParams, AxiomV2CircuitOutput, AxiomV2DataAndResults},
-    utils::build_axiom_v2_compute_query,
+    utils::{
+        build_axiom_v2_compute_query, check_compute_proof_format, check_compute_query_format,
+        verify_snark, DK,
+    },
 };
 
 pub fn agg_circuit_mock(agg_circuit_params: AggregationCircuitParams, snark: Snark) {
@@ -72,14 +75,27 @@ pub fn agg_circuit_run(
     let agg_snark = gen_snark_shplonk(&params, &pk, circuit, None::<&str>);
     let compute_query = build_axiom_v2_compute_query(
         agg_snark.clone(),
-        AxiomCircuitParams::Base(agg_circuit_params),
+        AxiomCircuitParams::Base(agg_circuit_params.clone()),
         inner_output.clone(),
         max_user_outputs,
     );
 
-    AxiomV2CircuitOutput {
+    let circuit_output = AxiomV2CircuitOutput {
         compute_query,
         data: inner_output,
         snark: agg_snark,
-    }
+    };
+
+    let vk = pk.get_vk();
+    check_compute_proof_format(circuit_output.clone(), false);
+    check_compute_query_format(
+        circuit_output.clone(),
+        AxiomCircuitParams::Base(agg_circuit_params),
+        vk.clone(),
+        max_user_outputs,
+    );
+    verify_snark(&DK, &circuit_output.snark)
+        .expect("Client snark failed to verify. Make sure you are using the right KZG params.");
+
+    circuit_output
 }
