@@ -87,7 +87,7 @@ pub fn agg_circuit_run(
     };
 
     let vk = pk.get_vk();
-    check_compute_proof_format(circuit_output.clone(), false);
+    check_compute_proof_format(circuit_output.clone(), true);
     check_compute_query_format(
         circuit_output.clone(),
         AxiomCircuitParams::Base(agg_circuit_params),
