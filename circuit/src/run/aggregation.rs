@@ -1,20 +1,20 @@
 use axiom_query::axiom_eth::{
-    halo2_base::{
-        gates::{circuit::CircuitBuilderStage, flex_gate::MultiPhaseThreadBreakPoints},
-        utils::fs::gen_srs,
-    },
+    halo2_base::gates::circuit::CircuitBuilderStage,
     halo2_proofs::{
         dev::MockProver,
         plonk::{keygen_pk, keygen_vk, ProvingKey, VerifyingKey},
+        poly::kzg::commitment::ParamsKZG,
     },
-    halo2curves::bn256::G1Affine,
+    halo2curves::bn256::{Bn256, G1Affine},
     snark_verifier_sdk::{halo2::gen_snark_shplonk, CircuitExt, Snark},
     utils::snark_verifier::AggregationCircuitParams,
 };
 
 use crate::{
     aggregation::create_aggregation_circuit,
-    types::{AxiomCircuitParams, AxiomV2CircuitOutput, AxiomV2DataAndResults},
+    types::{
+        AggregationCircuitPinning, AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput,
+    },
     utils::{
         build_axiom_v2_compute_query, check_compute_proof_format, check_compute_query_format,
         verify_snark, DK,
@@ -32,57 +32,65 @@ pub fn agg_circuit_mock(agg_circuit_params: AggregationCircuitParams, snark: Sna
 pub fn agg_circuit_keygen(
     agg_circuit_params: AggregationCircuitParams,
     snark: Snark,
+    child_pinning: AxiomCircuitPinning,
+    params: &ParamsKZG<Bn256>,
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
-    MultiPhaseThreadBreakPoints,
+    AggregationCircuitPinning,
 ) {
-    let params = gen_srs(agg_circuit_params.degree);
     let circuit =
         create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Keygen);
-    let vk = keygen_vk(&params, &circuit).expect("Failed to generate vk");
-    let pk = keygen_pk(&params, vk.clone(), &circuit).expect("Failed to generate pk");
+    let vk = keygen_vk(params, &circuit).expect("Failed to generate vk");
+    let pk = keygen_pk(params, vk.clone(), &circuit).expect("Failed to generate pk");
     let breakpoints = circuit.break_points();
-    (vk, pk, breakpoints)
+    let pinning = AggregationCircuitPinning {
+        child_pinning,
+        break_points: breakpoints,
+        params: agg_circuit_params,
+    };
+    (vk, pk, pinning)
 }
 
 pub fn agg_circuit_prove(
-    agg_circuit_params: AggregationCircuitParams,
+    agg_circuit_pinning: AggregationCircuitPinning,
     snark: Snark,
     pk: ProvingKey<G1Affine>,
-    break_points: MultiPhaseThreadBreakPoints,
+    params: &ParamsKZG<Bn256>,
 ) -> Snark {
-    let params = gen_srs(agg_circuit_params.degree);
-    let circuit =
-        create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Prover);
-    let circuit = circuit.use_break_points(break_points);
-    gen_snark_shplonk(&params, &pk, circuit, None::<&str>)
+    let circuit = create_aggregation_circuit(
+        agg_circuit_pinning.params,
+        snark,
+        CircuitBuilderStage::Prover,
+    );
+    let circuit = circuit.use_break_points(agg_circuit_pinning.break_points);
+    gen_snark_shplonk(params, &pk, circuit, None::<&str>)
 }
 
 pub fn agg_circuit_run(
-    agg_circuit_params: AggregationCircuitParams,
-    inner_snark: Snark,
+    agg_circuit_pinning: AggregationCircuitPinning,
+    inner_output: AxiomV2CircuitOutput,
     pk: ProvingKey<G1Affine>,
-    break_points: MultiPhaseThreadBreakPoints,
-    inner_output: AxiomV2DataAndResults,
-    max_user_outputs: usize,
+    params: &ParamsKZG<Bn256>,
 ) -> AxiomV2CircuitOutput {
-    let params = gen_srs(agg_circuit_params.degree);
-    let circuit =
-        create_aggregation_circuit(agg_circuit_params, inner_snark, CircuitBuilderStage::Prover);
-    let circuit = circuit.use_break_points(break_points);
+    let circuit = create_aggregation_circuit(
+        agg_circuit_pinning.params,
+        inner_output.snark,
+        CircuitBuilderStage::Prover,
+    );
+    let circuit = circuit.use_break_points(agg_circuit_pinning.break_points);
     let agg_circuit_params = circuit.builder.config_params.clone();
     let agg_snark = gen_snark_shplonk(&params, &pk, circuit, None::<&str>);
     let compute_query = build_axiom_v2_compute_query(
         agg_snark.clone(),
         AxiomCircuitParams::Base(agg_circuit_params.clone()),
-        inner_output.clone(),
-        max_user_outputs,
+        inner_output.data.clone(),
+        agg_circuit_pinning.child_pinning.max_user_outputs,
     );
 
     let circuit_output = AxiomV2CircuitOutput {
         compute_query,
-        data: inner_output,
+        data: inner_output.data,
         snark: agg_snark,
     };
 
@@ -92,7 +100,7 @@ pub fn agg_circuit_run(
         circuit_output.clone(),
         AxiomCircuitParams::Base(agg_circuit_params),
         vk.clone(),
-        max_user_outputs,
+        agg_circuit_pinning.child_pinning.max_user_outputs,
     );
     verify_snark(&DK, &circuit_output.snark)
         .expect("Client snark failed to verify. Make sure you are using the right KZG params.");

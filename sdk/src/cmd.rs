@@ -12,9 +12,13 @@ use axiom_circuit::{
         rlc::circuit::RlcCircuitParams,
         utils::{
             build_utils::keygen::read_srs_from_dir, keccak::decorator::RlcKeccakCircuitParams,
+            snark_verifier::AggregationCircuitParams,
         },
     },
-    run::inner::{keygen, mock, run},
+    run::{
+        aggregation::{agg_circuit_keygen, agg_circuit_run},
+        inner::{keygen, mock, run},
+    },
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     types::AxiomCircuitParams,
 };
@@ -26,7 +30,10 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     compute::{AxiomCompute, AxiomComputeFn},
-    utils::io::{read_pinning, read_pk, write_output, write_pinning, write_pk},
+    utils::io::{
+        read_agg_pinning, read_agg_pk, read_pinning, read_pk, write_agg_pinning, write_output,
+        write_pinning, write_pk,
+    },
     Fr,
 };
 
@@ -53,6 +60,7 @@ pub struct RawCircuitParams {
     pub keccak_rows_per_round: Option<usize>,
     pub max_outputs: Option<usize>,
     pub max_subqueries: Option<usize>,
+    pub agg_params: Option<AggregationCircuitParams>,
 }
 
 impl std::fmt::Display for SnarkCmd {
@@ -100,8 +108,19 @@ pub struct AxiomCircuitRunnerOptions {
     )]
     /// The path to a custom circuit configuration
     pub config: Option<PathBuf>,
+    #[arg(
+        long = "srs",
+        help = "For specifying custom KZG params directory (defaults to `params`)"
+    )]
     /// The path to the KZG params folder
     pub srs: Option<PathBuf>,
+    #[arg(
+        long = "aggregate",
+        help = "Whether to aggregate the output (defaults to false)",
+        action
+    )]
+    /// Whether to aggregate the output
+    pub should_aggregate: bool,
 }
 
 /// Runs the CLI given on any struct that implements the `AxiomComputeFn` trait
@@ -145,9 +164,12 @@ pub fn run_cli_on_scaffold<
     let mut max_user_outputs = USER_MAX_OUTPUTS;
     let mut max_subqueries = USER_MAX_SUBQUERIES;
 
-    let params = if let Some(config) = cli.config {
+    let mut agg_circuit_params: Option<AggregationCircuitParams> = None;
+
+    let params = if let Some(config) = cli.config.clone() {
         let f = File::open(config).unwrap();
         let raw_params: RawCircuitParams = serde_json::from_reader(f).unwrap();
+        agg_circuit_params = raw_params.agg_params;
 
         max_user_outputs = raw_params.max_outputs.unwrap_or(USER_MAX_OUTPUTS);
         max_subqueries = raw_params.max_subqueries.unwrap_or(USER_MAX_SUBQUERIES);
@@ -188,6 +210,8 @@ pub fn run_cli_on_scaffold<
         })
     };
 
+    let should_aggregate = cli.should_aggregate;
+
     let mut runner = AxiomCircuit::<Fr, Http, A>::new(provider.clone(), params)
         .use_max_user_outputs(max_user_outputs)
         .use_max_user_subqueries(max_subqueries);
@@ -201,15 +225,59 @@ pub fn run_cli_on_scaffold<
             let srs = read_srs_from_dir(&srs_path, runner.k() as u32).expect("Unable to read SRS");
             let (_, pk, pinning) = keygen(&mut runner, &srs);
             write_pk(&pk, data_path.join(PathBuf::from("pk.bin")));
-            write_pinning(&pinning, data_path.join(PathBuf::from("pinning.json")));
+            if should_aggregate {
+                if input.is_none() {
+                    panic!("The `input` argument is required for keygen with aggregation.");
+                }
+                if cli.config.is_none() {
+                    panic!("The `config` argument is required for keygen with aggregation.");
+                }
+                if agg_circuit_params.is_none() {
+                    panic!("The `agg_params` field in `config` is required for keygen with aggregation.");
+                }
+
+                let mut prover = AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone())
+                    .use_inputs(input);
+                let output = run(&mut prover, &pk, &srs);
+                let agg_kzg_params =
+                    read_srs_from_dir(&srs_path, agg_circuit_params.unwrap().degree as u32)
+                        .expect("Unable to read SRS");
+                let (_, agg_pk, agg_pinning) = agg_circuit_keygen(
+                    agg_circuit_params.unwrap(),
+                    output.snark,
+                    pinning,
+                    &agg_kzg_params,
+                );
+                write_pk(&agg_pk, data_path.join(PathBuf::from("agg_pk.bin")));
+                write_agg_pinning(&agg_pinning, data_path.join(PathBuf::from("pinning.json")));
+            } else {
+                write_pinning(&pinning, data_path.join(PathBuf::from("pinning.json")));
+            }
         }
         SnarkCmd::Run => {
-            let pinning = read_pinning(data_path.join(PathBuf::from("pinning.json")));
-            let mut prover =
-                AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone()).use_inputs(input);
-            let pk = read_pk(data_path.join(PathBuf::from("pk.bin")), &prover);
-            let srs = read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
-            let output = run(&mut prover, &pk, &srs);
+            let output = if should_aggregate {
+                let pinning = read_agg_pinning(data_path.join(PathBuf::from("pinning.json")));
+                let mut prover =
+                    AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone().child_pinning)
+                        .use_inputs(input);
+                let pk = read_pk(data_path.join(PathBuf::from("pk.bin")), &prover);
+                let srs =
+                    read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
+                let inner_output = run(&mut prover, &pk, &srs);
+                let agg_pk =
+                    read_agg_pk(data_path.join(PathBuf::from("agg_pk.bin")), pinning.params);
+                let agg_srs = read_srs_from_dir(&srs_path, pinning.params.degree as u32)
+                    .expect("Unable to read SRS");
+                agg_circuit_run(pinning, inner_output, agg_pk, &agg_srs)
+            } else {
+                let pinning = read_pinning(data_path.join(PathBuf::from("pinning.json")));
+                let mut prover = AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone())
+                    .use_inputs(input);
+                let pk = read_pk(data_path.join(PathBuf::from("pk.bin")), &prover);
+                let srs =
+                    read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
+                run(&mut prover, &pk, &srs)
+            };
             write_output(
                 output,
                 data_path.join(PathBuf::from("output.snark")),
