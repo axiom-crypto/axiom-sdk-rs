@@ -17,7 +17,7 @@ use crate::{
     types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
     utils::{
         build_axiom_v2_compute_query, check_compute_proof_format, check_compute_query_format,
-        verify_snark, DK,
+        get_query_schema_from_compute_query, verify_snark, DK,
     },
 };
 
@@ -113,10 +113,13 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
         }
     };
 
+    let query_schema = get_query_schema_from_compute_query(compute_query.clone()).unwrap();
+
     let circuit_output = AxiomV2CircuitOutput {
         compute_query,
         data: output,
         snark,
+        query_schema,
     };
 
     let vk = pk.get_vk();
