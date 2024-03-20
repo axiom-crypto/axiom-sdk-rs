@@ -68,6 +68,7 @@ pub struct AxiomV2CircuitOutput {
     pub compute_query: AxiomV2ComputeQuery,
     #[serde(flatten)]
     pub data: AxiomV2DataAndResults,
+    pub query_schema: H256,
     #[serde(skip_serializing)]
     pub snark: Snark,
 }

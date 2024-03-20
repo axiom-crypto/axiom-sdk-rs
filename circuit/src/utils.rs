@@ -2,6 +2,7 @@ use std::env;
 
 use anyhow::anyhow;
 use axiom_codec::{
+    encoder::native::get_query_schema_hash,
     types::native::{AxiomV2ComputeQuery, AxiomV2ComputeSnark, SubqueryResult},
     utils::native::decode_hilo_to_h256,
     HiLo,
@@ -42,7 +43,7 @@ use axiom_query::{
 use dotenv::dotenv;
 use ethers::{
     providers::{Http, Provider},
-    types::Bytes,
+    types::{Bytes, H256},
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -283,6 +284,17 @@ pub fn verify_snark(dk: &KzgDecidingKey<Bn256>, snark: &Snark) -> anyhow::Result
     PlonkVerifier::verify(dk, &snark.protocol, &snark.instances, &proof)
         .map_err(|_| anyhow!("PlonkVerifier failed"))?;
     Ok(())
+}
+
+/// This function gets query schema from an AxiomV2ComputeQuery
+pub fn get_query_schema_from_compute_query(
+    compute_query: AxiomV2ComputeQuery,
+) -> anyhow::Result<H256> {
+    Ok(get_query_schema_hash(
+        compute_query.k,
+        compute_query.result_len,
+        &compute_query.vkey,
+    )?)
 }
 
 lazy_static! {
