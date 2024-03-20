@@ -174,18 +174,16 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
     let kzg_params = gen_srs(runner.k() as u32);
     let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
-    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning.clone());
     let output = run::<_, S>(&mut runner, &pk, &kzg_params);
-    let (agg_vk, agg_pk, agg_break_points) =
-        agg_circuit_keygen(agg_circuit_params, output.snark.clone());
-    let final_output = agg_circuit_run(
+    let agg_kzg_params = gen_srs(agg_circuit_params.degree);
+    let (agg_vk, agg_pk, agg_pinning) = agg_circuit_keygen(
         agg_circuit_params,
         output.snark.clone(),
-        agg_pk,
-        agg_break_points,
-        output.data,
-        USER_MAX_OUTPUTS,
+        pinning,
+        &agg_kzg_params,
     );
+    let final_output = agg_circuit_run(agg_pinning, output.clone(), agg_pk, &agg_kzg_params);
     let circuit = create_aggregation_circuit(
         agg_circuit_params,
         output.snark.clone(),
