@@ -96,6 +96,75 @@ pub fn write_vk(vk: &VerifyingKey<G1Affine>, vk_path: PathBuf) {
     info!("Wrote verifying key to {:?}", vk_path);
 }
 
+pub fn write_keygen_output(
+    vk: &VerifyingKey<G1Affine>,
+    pk: &ProvingKey<G1Affine>,
+    pinning: &AxiomCircuitPinning,
+    data_path: PathBuf,
+) -> String {
+    let circuit_id = get_circuit_id(vk);
+    let pk_path = data_path.join(format!("{circuit_id}.pk"));
+    let vk_path = data_path.join(format!("{circuit_id}.vk"));
+    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    write_vk(vk, vk_path);
+    write_pk(pk, pk_path);
+    write_pinning(pinning, pinning_path);
+    circuit_id
+}
+
+pub fn read_pk_and_pinning<A: AxiomCircuitScaffold<Http, Fr>>(
+    data_path: PathBuf,
+    circuit_id: String,
+    runner: &AxiomCircuit<Fr, Http, A>,
+) -> (ProvingKey<G1Affine>, AxiomCircuitPinning) {
+    let pk_path = data_path.join(format!("{circuit_id}.pk"));
+    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    let pinning = read_pinning(pinning_path);
+    let pk = read_pk(pk_path, &runner.clone().use_pinning(pinning.clone()));
+    (pk, pinning)
+}
+
+pub fn write_agg_keygen_output(
+    keygen_output: (
+        VerifyingKey<G1Affine>,
+        ProvingKey<G1Affine>,
+        AggregationCircuitPinning,
+    ),
+    data_path: PathBuf,
+) -> String {
+    let circuit_id = get_circuit_id(&keygen_output.0);
+    let pk_path = data_path.join(format!("{circuit_id}.pk"));
+    let vk_path = data_path.join(format!("{circuit_id}.vk"));
+    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    write_vk(&keygen_output.0, vk_path);
+    write_pk(&keygen_output.1, pk_path);
+    write_agg_pinning(&keygen_output.2, pinning_path);
+    circuit_id
+}
+
+pub fn read_agg_pk_and_pinning(
+    data_path: PathBuf,
+    circuit_id: String,
+) -> (ProvingKey<G1Affine>, AggregationCircuitPinning) {
+    let pk_path = data_path.join(format!("{circuit_id}.pk"));
+    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    let pinning = read_agg_pinning(pinning_path);
+    let pk = read_agg_pk(pk_path, pinning.params);
+    (pk, pinning)
+}
+
+pub fn write_vk(vk: &VerifyingKey<G1Affine>, vk_path: PathBuf) {
+    if vk_path.exists() {
+        fs::remove_file(&vk_path).unwrap();
+    }
+    let f =
+        File::create(&vk_path).unwrap_or_else(|_| panic!("Could not create file at {vk_path:?}"));
+    let mut writer = BufWriter::new(f);
+    vk.write(&mut writer, SerdeFormat::RawBytes)
+        .expect("writing vkey should not fail");
+    info!("Wrote verifying key to {:?}", vk_path);
+}
+
 pub fn write_pk(pk: &ProvingKey<G1Affine>, pk_path: PathBuf) {
     if pk_path.exists() {
         fs::remove_file(&pk_path).unwrap();
