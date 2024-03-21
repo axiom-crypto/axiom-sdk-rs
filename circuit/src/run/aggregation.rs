@@ -80,7 +80,7 @@ pub fn agg_circuit_run(
     );
     let circuit = circuit.use_break_points(agg_circuit_pinning.break_points);
     let agg_circuit_params = circuit.builder.config_params.clone();
-    let agg_snark = gen_snark_shplonk(&params, &pk, circuit, None::<&str>);
+    let agg_snark = gen_snark_shplonk(params, &pk, circuit, None::<&str>);
     let compute_query = build_axiom_v2_compute_query(
         agg_snark.clone(),
         AxiomCircuitParams::Base(agg_circuit_params.clone()),
