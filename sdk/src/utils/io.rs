@@ -32,7 +32,7 @@ pub fn write_keygen_output(
     let circuit_id = get_circuit_id(vk);
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
     let vk_path = data_path.join(format!("{circuit_id}.vk"));
-    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     write_vk(vk, vk_path);
     write_pk(pk, pk_path);
     write_pinning(pinning, pinning_path);
@@ -45,7 +45,7 @@ pub fn read_pk_and_pinning<A: AxiomCircuitScaffold<Http, Fr>>(
     runner: &AxiomCircuit<Fr, Http, A>,
 ) -> (ProvingKey<G1Affine>, AxiomCircuitPinning) {
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
-    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     let pinning = read_pinning(pinning_path);
     let pk = read_pk(pk_path, &runner.clone().use_pinning(pinning.clone()));
     (pk, pinning)
@@ -62,7 +62,7 @@ pub fn write_agg_keygen_output(
     let circuit_id = get_circuit_id(&keygen_output.0);
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
     let vk_path = data_path.join(format!("{circuit_id}.vk"));
-    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     write_vk(&keygen_output.0, vk_path);
     write_pk(&keygen_output.1, pk_path);
     write_agg_pinning(&keygen_output.2, pinning_path);
@@ -74,7 +74,7 @@ pub fn read_agg_pk_and_pinning(
     circuit_id: String,
 ) -> (ProvingKey<G1Affine>, AggregationCircuitPinning) {
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
-    let pinning_path = data_path.join(format!("{circuit_id}.json"));
+    let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     let pinning = read_agg_pinning(pinning_path);
     let pk = read_agg_pk(pk_path, pinning.params);
     (pk, pinning)
