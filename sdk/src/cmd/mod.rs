@@ -141,11 +141,11 @@ pub fn run_cli_on_scaffold<
 
     let mut runner = AxiomCircuit::<Fr, Http, A>::new(provider.clone(), params)
         .use_max_user_outputs(max_user_outputs)
-        .use_max_user_subqueries(max_subqueries);
+        .use_max_user_subqueries(max_subqueries)
+        .use_inputs(input.clone());
 
     match cli.command {
         SnarkCmd::Mock => {
-            runner.set_inputs(input);
             mock(&mut runner);
         }
         SnarkCmd::Keygen => {
