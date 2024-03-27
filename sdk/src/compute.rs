@@ -32,7 +32,9 @@ pub trait AxiomComputeInput: Clone + Default + Debug {
     /// The type of the native input (ie. Rust types) to the compute function
     type LogicInput: Clone + Debug + Serialize + DeserializeOwned + Into<Self::Input<Fr>>;
     /// The type of the circuit input to the compute function
-    type Input<T: Copy>: Clone + InputFlatten<T>;
+    type Input<T: Copy>: Clone + InputFlatten<T, Params = Self::CoreParams>;
+    /// Optional type to specify circuit params.
+    type CoreParams = ();
 }
 
 /// A trait for specifying an Axiom Compute function
@@ -99,6 +101,7 @@ where
 {
     type InputValue = A::Input<Fr>;
     type InputWitness = A::Input<AssignedValue<Fr>>;
+    type CoreParams = A::CoreParams;
     type FirstPhasePayload = A::FirstPhasePayload;
 
     fn virtual_assign_phase0(
