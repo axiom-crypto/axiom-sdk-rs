@@ -53,6 +53,5 @@ impl AxiomComputeFn for RlcInput {
 }
 
 fn main() {
-    env_logger::init();
     run_cli::<RlcInput>();
 }

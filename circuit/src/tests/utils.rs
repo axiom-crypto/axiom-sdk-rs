@@ -5,6 +5,10 @@ use std::{
 };
 
 use axiom_codec::{constants::MAX_SOLIDITY_MAPPING_KEYS, HiLo};
+use axiom_components::{
+    ecdsa::{utils::testing::custom_parameters_ecdsa, ECDSAComponentInput},
+    framework::types::FixLenLogical,
+};
 use axiom_query::axiom_eth::{
     halo2_base::AssignedValue, halo2curves::bn256::Fr, rlc::circuit::builder::RlcCircuitBuilder,
     utils::encode_addr_to_field,
@@ -169,6 +173,21 @@ pub fn tx_call<P: JsonRpcClient>(
     val
 }
 
+pub fn ecdsa_call<P: JsonRpcClient>(
+    builder: &mut RlcCircuitBuilder<Fr>,
+    subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
+) -> HiLo<AssignedValue<Fr>> {
+    let raw_subquery = custom_parameters_ecdsa(1, 1, 1);
+    let flattened_subquery = raw_subquery.flatten();
+    let assigned_subquery = builder.base.main(0).assign_witnesses(flattened_subquery);
+    let subquery = ECDSAComponentInput::try_from_raw(assigned_subquery).unwrap();
+    let val = subquery_caller
+        .lock()
+        .unwrap()
+        .call(ctx!(builder, 0), subquery);
+    val
+}
+
 pub fn all_subqueries_call<P: JsonRpcClient>(
     builder: &mut RlcCircuitBuilder<Fr>,
     subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
@@ -180,6 +199,7 @@ pub fn all_subqueries_call<P: JsonRpcClient>(
         receipt_call(builder, subquery_caller.clone()),
         storage_call(builder, subquery_caller.clone()),
         tx_call(builder, subquery_caller.clone()),
+        ecdsa_call(builder, subquery_caller.clone()),
     ];
     vals
 }

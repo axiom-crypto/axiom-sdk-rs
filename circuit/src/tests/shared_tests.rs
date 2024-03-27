@@ -1,42 +1,28 @@
 use axiom_codec::{
     constants::USER_MAX_OUTPUTS,
     types::field_elements::{FieldSubqueryResult, SUBQUERY_RESULT_LEN},
-    utils::native::decode_hilo_to_h256,
-    HiLo,
 };
-use axiom_query::{
-    axiom_eth::{
-        halo2_proofs::plonk::VerifyingKey,
-        halo2curves::{
-            bn256::{Fr, G1Affine},
-            group::GroupEncoding,
-        },
-        snark_verifier::pcs::{
-            kzg::{KzgAccumulator, LimbsEncoding},
-            AccumulatorEncoding,
-        },
-        snark_verifier_sdk::{NativeLoader, Snark, BITS, LIMBS},
-        utils::{keccak::decorator::RlcKeccakCircuitParams, snark_verifier::NUM_FE_ACCUMULATOR},
-    },
-    verify_compute::utils::{
-        get_metadata_from_protocol, get_onchain_vk_from_vk, write_onchain_vkey,
-    },
+use axiom_query::axiom_eth::{
+    halo2_base::utils::fs::gen_srs,
+    halo2curves::bn256::{Fr, G1Affine},
+    snark_verifier::pcs::{kzg::LimbsEncoding, AccumulatorEncoding},
+    snark_verifier_sdk::{NativeLoader, Snark, BITS, LIMBS},
+    utils::snark_verifier::NUM_FE_ACCUMULATOR,
 };
 use ethers::providers::Http;
 use itertools::Itertools;
 
 use crate::{
     run::inner::{keygen, mock, run},
-    scaffold::AxiomCircuitScaffold,
-    types::{AxiomCircuitParams, AxiomV2CircuitOutput, AxiomV2DataAndResults},
-    utils::get_provider,
+    scaffold::{AxiomCircuit, AxiomCircuitScaffold},
+    types::{AxiomCircuitParams, AxiomV2DataAndResults},
+    utils::{check_compute_proof_format, check_compute_query_format, get_provider},
 };
-
-const NUM_BYTES_ACCUMULATOR: usize = 64;
 
 pub fn mock_test<S: AxiomCircuitScaffold<Http, Fr>>(params: AxiomCircuitParams) {
     let client = get_provider();
-    mock::<_, S>(client, params, None);
+    let mut runner = AxiomCircuit::<_, _, S>::new(client, params);
+    mock::<_, S>(&mut runner);
 }
 
 pub fn single_instance_test(
@@ -84,81 +70,16 @@ pub fn single_instance_test(
     );
 }
 
-pub fn check_compute_proof_format(output: AxiomV2CircuitOutput, is_aggregation: bool) {
-    let result_len = output.data.compute_results.len();
-    let mut instances = output.snark.instances[0].clone();
-
-    //check compute accumulator
-    let kzg_accumulators = &output.compute_query.compute_proof[0..NUM_BYTES_ACCUMULATOR];
-    if !is_aggregation {
-        assert_eq!(kzg_accumulators, &vec![0; NUM_BYTES_ACCUMULATOR]);
-    } else {
-        //check that accumulator can be deserialized from instances
-        let KzgAccumulator { lhs, rhs } =
-            <LimbsEncoding<LIMBS, BITS> as AccumulatorEncoding<G1Affine, NativeLoader>>::from_repr(
-                &instances[..NUM_FE_ACCUMULATOR].iter().collect_vec(),
-            )
-            .unwrap();
-        assert_eq!(&kzg_accumulators[0..32], lhs.to_bytes().as_ref());
-        assert_eq!(&kzg_accumulators[32..64], rhs.to_bytes().as_ref());
-        instances.drain(0..NUM_FE_ACCUMULATOR);
-    }
-
-    //check compute results
-    let compute_results = instances
-        .chunks(2)
-        .take(result_len)
-        .map(|c| decode_hilo_to_h256(HiLo::from_hi_lo([c[0], c[1]])))
-        .collect_vec();
-    assert_eq!(compute_results, output.data.compute_results);
-    assert_eq!(
-        &output.compute_query.compute_proof
-            [NUM_BYTES_ACCUMULATOR..NUM_BYTES_ACCUMULATOR + result_len * 2],
-        compute_results
-            .iter()
-            .flat_map(|a| a.to_fixed_bytes())
-            .collect_vec()
-            .as_slice()
-    );
-
-    //check compute proof transcript
-    assert_eq!(
-        &output.compute_query.compute_proof[NUM_BYTES_ACCUMULATOR + result_len * 2 * 32..],
-        output.snark.proof()
-    );
-}
-
-pub fn check_compute_query_format(
-    output: AxiomV2CircuitOutput,
-    params: AxiomCircuitParams,
-    vk: VerifyingKey<G1Affine>,
-) {
-    let rlc_params = RlcKeccakCircuitParams::from(params.clone()).rlc;
-    //check vkey is the same
-    let metadata =
-        get_metadata_from_protocol(&output.snark.protocol, rlc_params, USER_MAX_OUTPUTS).unwrap();
-    let onchain_vk = get_onchain_vk_from_vk(&vk, metadata);
-    let onchain_vk_h256 = write_onchain_vkey(&onchain_vk).unwrap();
-    assert_eq!(output.compute_query.vkey, onchain_vk_h256);
-
-    //check k is correct
-    let rlc_keccak_circuit_params = RlcKeccakCircuitParams::from(params.clone());
-    assert_eq!(output.compute_query.k, rlc_keccak_circuit_params.k() as u8);
-
-    //check result_len is correct
-    assert_eq!(
-        output.compute_query.result_len,
-        output.data.compute_results.len() as u16
-    );
-}
-
 pub fn check_compute_proof_and_query_format<S: AxiomCircuitScaffold<Http, Fr>>(
     params: AxiomCircuitParams,
     is_aggregation: bool,
 ) {
     let client = get_provider();
-    let (vk, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let output = run::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params.clone());
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (vk, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let output = run::<_, S>(&mut runner, &pk, &kzg_params);
     check_compute_proof_format(output.clone(), is_aggregation);
-    check_compute_query_format(output, params, vk);
+    check_compute_query_format(output, params, vk, USER_MAX_OUTPUTS);
 }

@@ -5,9 +5,16 @@ use serde::{Deserialize, Serialize};
 use crate::{impl_input_flatten_for_fixed_array, impl_input_flatten_for_tuple};
 
 pub trait InputFlatten<T: Copy>: Sized {
+    type Params: Default = ();
     const NUM_FE: usize;
     fn flatten_vec(&self) -> Vec<T>;
     fn unflatten(vec: Vec<T>) -> Result<Self>;
+    fn params(&self) -> Self::Params {
+        Self::Params::default()
+    }
+    fn unflatten_with_params(vec: Vec<T>, _params: Self::Params) -> Result<Self> {
+        Self::unflatten(vec)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -88,8 +88,8 @@ impl<F: Field, const N: usize> RawInput<F> for FixLenVec<usize, N> {
     type FEType<T: Copy> = [T; N];
     fn convert(&self) -> Self::FEType<F> {
         let mut res = [F::ZERO; N];
-        for i in 0..N {
-            res[i] = F::from(self.0[i] as u64);
+        for (i, item) in res.iter_mut().enumerate().take(N) {
+            *item = F::from(self.0[i] as u64);
         }
         res
     }

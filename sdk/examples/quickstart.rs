@@ -102,6 +102,5 @@ impl AxiomComputeFn for QuickstartInput {
 }
 
 fn main() {
-    env_logger::init();
     run_cli::<QuickstartInput>();
 }

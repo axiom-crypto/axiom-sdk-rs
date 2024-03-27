@@ -1,13 +1,24 @@
+use std::collections::HashMap;
+
 use axiom_codec::types::native::AxiomV2ComputeQuery;
-use axiom_query::axiom_eth::{
-    halo2_base::gates::circuit::{BaseCircuitParams, BaseConfig},
-    rlc::{
-        circuit::{RlcCircuitParams, RlcConfig},
-        virtual_region::RlcThreadBreakPoints,
+use axiom_query::{
+    axiom_eth::{
+        halo2_base::gates::{
+            circuit::{BaseCircuitParams, BaseConfig},
+            flex_gate::MultiPhaseThreadBreakPoints,
+        },
+        rlc::{
+            circuit::{RlcCircuitParams, RlcConfig},
+            virtual_region::RlcThreadBreakPoints,
+        },
+        snark_verifier_sdk::Snark,
+        utils::{
+            keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
+            snark_verifier::AggregationCircuitParams,
+        },
+        Field,
     },
-    snark_verifier_sdk::Snark,
-    utils::keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
-    Field,
+    utils::client_circuit::metadata::AxiomV2CircuitMetadata,
 };
 use ethers::types::H256;
 use serde::{Deserialize, Serialize};
@@ -38,6 +49,15 @@ impl Default for AxiomCircuitParams {
 pub struct AxiomCircuitPinning {
     pub params: AxiomCircuitParams,
     pub break_points: RlcThreadBreakPoints,
+    pub max_user_outputs: usize,
+    pub max_user_subqueries: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregationCircuitPinning {
+    pub child_pinning: AxiomCircuitPinning,
+    pub break_points: MultiPhaseThreadBreakPoints,
+    pub params: AggregationCircuitParams,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]
@@ -53,6 +73,7 @@ pub struct AxiomV2CircuitOutput {
     pub compute_query: AxiomV2ComputeQuery,
     #[serde(flatten)]
     pub data: AxiomV2DataAndResults,
+    pub query_schema: H256,
     #[serde(skip_serializing)]
     pub snark: Snark,
 }
@@ -74,4 +95,16 @@ impl From<AxiomCircuitParams> for RlcKeccakCircuitParams {
             AxiomCircuitParams::Keccak(params) => params,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AxiomClientCircuitMetadata {
+    pub metadata: AxiomV2CircuitMetadata,
+    pub circuit_id: String,
+    pub data_query_size: HashMap<usize, usize>,
+    pub agg_circuit_id: Option<String>,
+    pub max_user_outputs: usize,
+    pub max_user_subqueries: usize,
+    pub preprocessed_len: usize,
+    pub query_schema: H256,
 }

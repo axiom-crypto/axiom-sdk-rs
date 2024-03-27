@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::Result;
 use axiom_codec::{
@@ -43,6 +43,7 @@ pub struct SubqueryCaller<P: JsonRpcClient, F: Field> {
     pub subquery_assigned_values: BTreeMap<ContextTag, Vec<AssignedValue<F>>>,
     pub keccak_fix_len_calls: Vec<(KeccakFixLenCall<F>, HiLo<AssignedValue<F>>)>,
     pub keccak_var_len_calls: Vec<(KeccakVarLenCall<F>, HiLo<AssignedValue<F>>)>,
+    subquery_cache: HashMap<AnySubquery, H256>,
     // if true, the fetched subquery will always be H256::zero()
     mock_subquery_call: bool,
 }
@@ -56,6 +57,7 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
             keccak_fix_len_calls: Vec::new(),
             keccak_var_len_calls: Vec::new(),
             mock_subquery_call: mock,
+            subquery_cache: HashMap::new(),
         }
     }
 
@@ -98,8 +100,14 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
     ) -> HiLo<AssignedValue<F>> {
         let result = if self.mock_subquery_call {
             H256::zero()
+        } else if let std::collections::hash_map::Entry::Vacant(e) =
+            self.subquery_cache.entry(subquery.any_subquery())
+        {
+            let val = subquery.fetch(&self.provider).unwrap();
+            e.insert(val);
+            val
         } else {
-            subquery.fetch(&self.provider).unwrap()
+            *self.subquery_cache.get(&subquery.any_subquery()).unwrap()
         };
         let any_subquery = subquery.any_subquery();
         let val = (any_subquery.clone(), result);
