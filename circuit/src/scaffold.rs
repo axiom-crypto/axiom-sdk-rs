@@ -57,8 +57,9 @@ use crate::{
 };
 
 pub trait AxiomCircuitScaffold<P: JsonRpcClient, F: Field>: Default + Clone + Debug {
-    type InputValue: Clone + Debug + Default + InputFlatten<F>;
-    type InputWitness: Clone + Debug + InputFlatten<AssignedValue<F>>;
+    type InputValue: Clone + Debug + Default + InputFlatten<F, Params = Self::CoreParams>;
+    type InputWitness: Clone + Debug + InputFlatten<AssignedValue<F>, Params = Self::CoreParams>;
+    type CoreParams = ();
     type FirstPhasePayload: Clone = ();
 
     fn virtual_assign_phase0(
@@ -248,13 +249,15 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         }
         let is_inputs = self.inputs.is_none();
         let flattened_inputs = self.inputs.clone().unwrap_or_default().flatten_vec();
+        let params = self.inputs.clone().unwrap_or_default().params();
         let assigned_input_vec = self
             .builder
             .borrow_mut()
             .base
             .main(0)
             .assign_witnesses(flattened_inputs);
-        let assigned_inputs = A::InputWitness::unflatten(assigned_input_vec).unwrap();
+        let assigned_inputs =
+            A::InputWitness::unflatten_with_params(assigned_input_vec, params).unwrap();
 
         let subquery_caller = Arc::new(Mutex::new(SubqueryCaller::new(
             self.provider.clone(),
