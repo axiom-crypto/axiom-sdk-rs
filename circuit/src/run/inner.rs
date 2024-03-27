@@ -80,10 +80,6 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     let k = circuit_params.k();
     let output = circuit.scaffold_output();
-    if circuit_params.keccak_rows_per_round > 0 {
-        circuit.calculate_params();
-        info!("Calculated params: {:?}", circuit.params());
-    }
     let max_user_outputs = circuit.max_user_outputs;
     let snark = gen_snark_shplonk(params, pk, circuit.clone(), None::<&str>);
     let compute_query = match raw_circuit_params {
