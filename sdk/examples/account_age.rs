@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
-    cmd::run_cli,
+    axiom_compute_prover_server,
     ethers::types::Address,
     halo2_base::{
         gates::{GateInstructions, RangeInstructions},
@@ -48,8 +48,8 @@ impl AxiomComputeFn for AccountAgeInput {
     }
 }
 
-// axiom_compute_prover_server!(AccountAgeInput);
+axiom_compute_prover_server!(AccountAgeInput);
 
-fn main() {
-    run_cli::<AccountAgeInput>();
-}
+// fn main() {
+//     run_cli::<AccountAgeInput>();
+// }

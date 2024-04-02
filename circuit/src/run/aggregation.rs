@@ -70,7 +70,7 @@ pub fn agg_circuit_prove(
 pub fn agg_circuit_run(
     agg_circuit_pinning: AggregationCircuitPinning,
     inner_output: AxiomV2CircuitOutput,
-    pk: ProvingKey<G1Affine>,
+    pk: &ProvingKey<G1Affine>,
     params: &ParamsKZG<Bn256>,
 ) -> AxiomV2CircuitOutput {
     let circuit = create_aggregation_circuit(
@@ -80,7 +80,7 @@ pub fn agg_circuit_run(
     );
     let circuit = circuit.use_break_points(agg_circuit_pinning.break_points);
     let agg_circuit_params = circuit.builder.config_params.clone();
-    let agg_snark = gen_snark_shplonk(params, &pk, circuit, None::<&str>);
+    let agg_snark = gen_snark_shplonk(params, pk, circuit, None::<&str>);
     let compute_query = build_axiom_v2_compute_query(
         agg_snark.clone(),
         AxiomCircuitParams::Base(agg_circuit_params.clone()),

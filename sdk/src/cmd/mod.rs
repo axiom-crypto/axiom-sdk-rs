@@ -204,7 +204,7 @@ pub fn run_cli_on_scaffold<
                     read_agg_pk_and_pinning(data_path.clone(), agg_circuit_id);
                 let agg_srs = read_srs_from_dir(&srs_path, agg_pinning.params.degree)
                     .expect("Unable to read SRS");
-                agg_circuit_run(agg_pinning, inner_output, agg_pk, &agg_srs)
+                agg_circuit_run(agg_pinning, inner_output, &agg_pk, &agg_srs)
             } else {
                 inner_output
             };
