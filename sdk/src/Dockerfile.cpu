@@ -1,0 +1,31 @@
+FROM rust:1.74 as builder
+
+RUN apt-get update && apt-get install -y \
+    git \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+RUN apt-get update -y
+
+WORKDIR /code
+ENV CARGO_HOME=/code/.cargo
+COPY . .
+
+COPY . .
+
+ENV PROVIDER_URI=https://eth-sepolia.g.alchemy.com/v2/nYc8JJ48348qILd9VjKxRKLPlqE4rIP0
+ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
+
+RUN cargo build --example keccak --release
+
+FROM debian:stable-slim
+WORKDIR /code
+RUN apt update \
+    && apt install -y openssl ca-certificates \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --from=builder /code/target/release/keccak ./
+EXPOSE 8000

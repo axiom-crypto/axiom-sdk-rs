@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
+    axiom_compute_prover_server,
     cmd::run_cli,
     ethers::types::Address,
     halo2_base::{
