@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
+    axiom_compute_prover_server,
     cmd::run_cli,
     halo2_base::AssignedValue,
     Fr,
@@ -34,8 +35,8 @@ impl AxiomComputeFn for KeccakInput {
     }
 }
 
-fn main() {
-    run_cli::<KeccakInput>();
-}
+// fn main() {
+//     run_cli::<KeccakInput>();
+// }
 
-// axiom_compute_prover_server!(KeccakInput);
+axiom_compute_prover_server!(KeccakInput);

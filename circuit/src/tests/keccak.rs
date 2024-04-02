@@ -183,7 +183,7 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
         &agg_kzg_params,
         false,
     );
-    let final_output = agg_circuit_run(agg_pinning, output.clone(), agg_pk, &agg_kzg_params);
+    let final_output = agg_circuit_run(agg_pinning, output.clone(), &agg_pk, &agg_kzg_params);
     let circuit = create_aggregation_circuit(
         agg_circuit_params,
         output.snark.clone(),
