@@ -13,10 +13,10 @@
     "num_rlc_columns": 0,
     "keccak_rows_per_round": 50,
     "agg_params": {
-        "degree": 21,
+        "degree": 16,
         "num_advice": 11,
         "num_lookup_advice": 1,
         "num_fixed": 1,
-        "lookup_bits": 20
+        "lookup_bits": 15
     }
 }
