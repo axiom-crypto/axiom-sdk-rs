@@ -90,4 +90,12 @@ pub struct AxiomCircuitRunnerOptions {
     )]
     /// Whether to aggregate the output
     pub should_aggregate: bool,
+
+    #[arg(
+        long = "auto-config-aggregation",
+        help = "Whether to aggregate the output (defaults to false)",
+        action
+    )]
+    /// Whether to auto calculate the aggregation params
+    pub should_auto_config_aggregation_circuit: bool,
 }

@@ -241,9 +241,12 @@ pub async fn get_circuit_output(
 #[macro_export]
 macro_rules! axiom_compute_prover_server {
     ($A:ty) => {
+        axiom_compute_prover_server!($crate::axiom::AxiomCompute<$A>, $A);
+    };
+    ($A:ty, $I: ty) => {
         #[rocket::post("/start_proving_job", format = "json", data = "<req>")]
         pub async fn start_proving_job(
-            req: rocket::serde::json::Json<$A>,
+            req: rocket::serde::json::Json<$I>,
             ctx: &rocket::State<$crate::server::AxiomComputeManager>,
         ) -> String {
             let input = serde_json::to_string(&req.into_inner()).unwrap();
@@ -258,12 +261,8 @@ macro_rules! axiom_compute_prover_server {
             let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
             let worker_manager = job_queue.clone();
             std::thread::spawn(|| {
-                let ctx = $crate::server::initialize::<$crate::axiom::AxiomCompute<$A>>(options);
-                $crate::server::prover_loop::<$crate::axiom::AxiomCompute<$A>, $A>(
-                    worker_manager,
-                    ctx,
-                    shutdown_rx,
-                );
+                let ctx = $crate::server::initialize::<$A>(options);
+                $crate::server::prover_loop::<$A, $I>(worker_manager, ctx, shutdown_rx);
             });
             rocket::build()
                 .manage(job_queue)
