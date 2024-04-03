@@ -34,13 +34,17 @@ pub fn agg_circuit_keygen(
     snark: Snark,
     child_pinning: AxiomCircuitPinning,
     params: &ParamsKZG<Bn256>,
+    should_calculate_params: bool,
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
     AggregationCircuitPinning,
 ) {
-    let circuit =
+    let mut circuit =
         create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Keygen);
+    if should_calculate_params {
+        circuit.calculate_params(Some(100));
+    }
     let vk = keygen_vk(params, &circuit).expect("Failed to generate vk");
     let pk = keygen_pk(params, vk.clone(), &circuit).expect("Failed to generate pk");
     let breakpoints = circuit.break_points();

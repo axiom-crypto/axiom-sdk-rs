@@ -37,3 +37,5 @@ impl AxiomComputeFn for KeccakInput {
 fn main() {
     run_cli::<KeccakInput>();
 }
+
+// axiom_compute_prover_server!(KeccakInput);

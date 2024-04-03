@@ -170,8 +170,14 @@ pub fn run_cli_on_scaffold<
                     read_srs_from_dir(&srs_path, agg_circuit_params.unwrap().degree)
                         .expect("Unable to read SRS");
                 let agg_params = agg_circuit_params.unwrap();
-                let agg_keygen_output =
-                    agg_circuit_keygen(agg_params, output.snark, pinning, &agg_kzg_params);
+                let agg_keygen_output = agg_circuit_keygen(
+                    agg_params,
+                    output.snark,
+                    pinning,
+                    &agg_kzg_params,
+                    cli.should_auto_config_aggregation_circuit,
+                );
+                let agg_params = agg_keygen_output.2.params.clone();
                 let agg_vk = agg_keygen_output.0.clone();
                 write_agg_keygen_output(agg_keygen_output, data_path.clone());
                 get_agg_axiom_client_circuit_metadata(
