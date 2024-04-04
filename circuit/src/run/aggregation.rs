@@ -42,8 +42,9 @@ pub fn agg_circuit_keygen(
 ) {
     let mut circuit =
         create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Keygen);
+    let mut calculated_params = agg_circuit_params.clone();
     if should_calculate_params {
-        circuit.calculate_params(Some(100));
+        calculated_params = circuit.calculate_params(Some(100));
     }
     let vk = keygen_vk(params, &circuit).expect("Failed to generate vk");
     let pk = keygen_pk(params, vk.clone(), &circuit).expect("Failed to generate pk");
@@ -51,7 +52,7 @@ pub fn agg_circuit_keygen(
     let pinning = AggregationCircuitPinning {
         child_pinning,
         break_points: breakpoints,
-        params: agg_circuit_params,
+        params: calculated_params,
     };
     (vk, pk, pinning)
 }
