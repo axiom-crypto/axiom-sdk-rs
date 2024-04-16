@@ -68,10 +68,16 @@ pub fn run_cli_on_scaffold<
             if cli.degree.is_none() && cli.config.is_none() {
                 panic!("The `degree` argument is required for the selected command.");
             }
+            if cli.degree.is_some() && cli.config.is_some() {
+                warn!("The `degree` argument is ignored when a `config` file is provided.");
+            }
         }
         _ => {
             if cli.degree.is_some() {
                 warn!("The `degree` argument is not used for the selected command.");
+            }
+            if cli.config.is_some() {
+                warn!("The `config` argument is not used for the selected command.");
             }
         }
     }
@@ -127,8 +133,16 @@ pub fn run_cli_on_scaffold<
             AxiomCircuitParams::Base(base_params)
         }
     } else {
+        let degree = if cli.command == SnarkCmd::Run {
+            // The k will be read from the pinning file instead
+            12
+        } else {
+            cli.degree
+                .expect("The `degree` argument is required for the selected command.")
+                as usize
+        };
         AxiomCircuitParams::Base(BaseCircuitParams {
-            k: cli.degree.unwrap() as usize,
+            k: degree,
             num_advice_per_phase: vec![4],
             num_fixed: 1,
             num_lookup_advice_per_phase: vec![1],
