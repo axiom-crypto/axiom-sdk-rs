@@ -5,7 +5,7 @@ pub use clap::Parser;
 use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Subcommand)]
+#[derive(Clone, Copy, Debug, Subcommand, PartialEq)]
 /// Circuit CLI commands
 pub enum SnarkCmd {
     /// Run the mock prover

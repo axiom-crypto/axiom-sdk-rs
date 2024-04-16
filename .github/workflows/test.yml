@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest-64core-256ram
     steps:
       - uses: actions/checkout@v3
+      - name: Configure Git for submodules
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
       - name: Build rust client
         run: |
           cargo build --verbose
@@ -19,9 +22,11 @@ jobs:
           mkdir params
           for k in {5..21}
           do
-            wget "https://axiom-crypto.s3.amazonaws.com/challenge_0078/kzg_bn254_${k}.srs"
+            wget "https://axiom-crypto.s3.amazonaws.com/challenge_0085/kzg_bn254_${k}.srs"
           done
           mv *.srs params/
+          mkdir circuit/params
+          cp params/*.srs circuit/params/
       - name: Test rust client
         run: |
           export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
@@ -30,11 +35,11 @@ jobs:
         run: |
           export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
           mkdir data
-          cargo run --example keccak -- --input sdk/data/keccak_input.json -k 15 -c sdk/data/keccak_config.json keygen
-          cargo run --example keccak -- --input sdk/data/keccak_input.json -k 15 -c sdk/data/keccak_config.json run
-          cargo run --example rlc -- --input sdk/data/rlc_input.json -k 15 -c sdk/data/rlc_config.json keygen
-          cargo run --example rlc -- --input sdk/data/rlc_input.json -k 15 -c sdk/data/rlc_config.json run
-          cargo run --example account_age -- --input sdk/data/account_age_input.json -k 15 keygen
-          cargo run --example account_age -- --input sdk/data/account_age_input.json -k 15 run
-          cargo run --example quickstart -- --input sdk/data/quickstart_input.json -k 15 keygen
-          cargo run --example quickstart -- --input sdk/data/quickstart_input.json -k 15 run
+          cargo run --example keccak -- --input sdk/data/keccak_input.json --config sdk/data/keccak_config.json --aggregate --auto-config-aggregation keygen
+          cargo run --example keccak -- --input sdk/data/keccak_input.json --config sdk/data/keccak_config.json --aggregate run
+          cargo run --example rlc -- -c sdk/data/rlc_config.json keygen
+          cargo run --example rlc -- --input sdk/data/rlc_input.json run
+          cargo run --example account_age -- -k 15 keygen
+          cargo run --example account_age -- --input sdk/data/account_age_input.json run
+          cargo run --example quickstart -- -k 15 keygen
+          cargo run --example quickstart -- --input sdk/data/quickstart_input.json run
