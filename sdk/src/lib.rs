@@ -146,5 +146,7 @@ pub mod subquery;
 pub use ethers;
 /// Run either the proving/keygen CLI or the server from the same binary
 pub mod bin;
+/// Util to create a Docker image for a circuit
+pub mod dockerize;
 /// Module with utility functions for running the CLI
 pub mod utils;

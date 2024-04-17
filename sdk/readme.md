@@ -68,3 +68,16 @@ Options:
   -h, --help                   Print help
   -V, --version                Print version
 ```
+
+### Dockerize
+
+```
+To generate a Dockerfile for running the circuit binary
+
+Usage: account_age dockerize [OPTIONS]
+
+Options:
+  -o, --output-path <OUTPUT_PATH>  For loading build artifacts [default: Dockerfile.cpu]
+  -h, --help                       Print help
+  -V, --version                    Print version
+```

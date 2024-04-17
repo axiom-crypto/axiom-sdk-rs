@@ -10,3 +10,4 @@ params
 .DS_Store
 debug/
 .cargo
+Dockerfile.cpu

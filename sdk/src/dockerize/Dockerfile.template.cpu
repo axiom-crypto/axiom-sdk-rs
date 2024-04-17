@@ -14,7 +14,7 @@ COPY . .
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
 ENV RUST_LOG=info
 
-RUN cargo build --example keccak --release
+RUN {{build_command}}
 
 FROM debian:stable-slim
 WORKDIR /code
@@ -23,5 +23,5 @@ RUN apt update \
     && apt clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY --from=builder /code/target/release/examples/keccak ./bin
+COPY --from=builder {{target_path}} ./bin
 EXPOSE 8000

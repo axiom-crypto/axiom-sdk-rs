@@ -218,6 +218,11 @@ macro_rules! axiom_compute_prover_server {
                 $crate::server::prover_loop::<$A, $I>(worker_manager, ctx, shutdown_rx);
             });
             rocket::build()
+                .configure(rocket::Config {
+                    address: std::str::FromStr::from_str("0.0.0.0").unwrap(),
+                    port: 8000,
+                    ..rocket::Config::default()
+                })
                 .manage(job_queue)
                 .mount(
                     "/",
