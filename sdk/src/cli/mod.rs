@@ -53,8 +53,9 @@ impl std::fmt::Display for SnarkCmd {
 pub fn run_cli_on_scaffold<
     A: AxiomCircuitScaffold<Http, Fr>,
     I: Into<A::InputValue> + DeserializeOwned,
->() {
-    let cli = AxiomCircuitRunnerOptions::parse();
+>(
+    cli: AxiomCircuitRunnerOptions,
+) {
     match cli.command {
         SnarkCmd::Mock | SnarkCmd::Run => {
             if cli.input_path.is_none() {
@@ -90,9 +91,6 @@ pub fn run_cli_on_scaffold<
         .provider
         .unwrap_or_else(|| env::var("PROVIDER_URI").expect("The `provider` argument is required for the selected command. Either pass it as an argument or set the `PROVIDER_URI` environment variable."));
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
-    let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
-    let srs_path = cli.srs.unwrap_or_else(|| PathBuf::from("params"));
-    let circuit_name = cli.name.unwrap_or_else(|| "circuit".to_string());
 
     let mut max_user_outputs = USER_MAX_OUTPUTS;
     let mut max_subqueries = USER_MAX_SUBQUERIES;
@@ -163,9 +161,9 @@ pub fn run_cli_on_scaffold<
             mock(&mut runner);
         }
         SnarkCmd::Keygen => {
-            let srs = read_srs_from_dir(&srs_path, runner.k() as u32).expect("Unable to read SRS");
+            let srs = read_srs_from_dir(&cli.srs, runner.k() as u32).expect("Unable to read SRS");
             let (vk, pk, pinning) = keygen(&mut runner, &srs);
-            write_keygen_output(&vk, &pk, &pinning, data_path.clone());
+            write_keygen_output(&vk, &pk, &pinning, cli.data_path.clone());
             let metadata = if should_aggregate {
                 if input.is_none() {
                     panic!("The `input` argument is required for keygen with aggregation.");
@@ -181,7 +179,7 @@ pub fn run_cli_on_scaffold<
                     .use_inputs(input);
                 let output = run(&mut prover, &pk, &srs);
                 let agg_kzg_params =
-                    read_srs_from_dir(&srs_path, agg_circuit_params.unwrap().degree)
+                    read_srs_from_dir(&cli.srs, agg_circuit_params.unwrap().degree)
                         .expect("Unable to read SRS");
                 let agg_params = agg_circuit_params.unwrap();
                 let agg_keygen_output = agg_circuit_keygen(
@@ -191,9 +189,9 @@ pub fn run_cli_on_scaffold<
                     &agg_kzg_params,
                     cli.should_auto_config_aggregation_circuit,
                 );
-                let agg_params = agg_keygen_output.2.params.clone();
+                let agg_params = agg_keygen_output.2.params;
                 let agg_vk = agg_keygen_output.0.clone();
-                write_agg_keygen_output(agg_keygen_output, data_path.clone());
+                write_agg_keygen_output(agg_keygen_output, cli.data_path.clone());
                 get_agg_axiom_client_circuit_metadata(
                     &runner,
                     &agg_kzg_params,
@@ -206,23 +204,26 @@ pub fn run_cli_on_scaffold<
             };
             write_metadata(
                 metadata,
-                data_path.join(PathBuf::from(format!("{}.json", circuit_name))),
+                cli.data_path
+                    .join(PathBuf::from(format!("{}.json", cli.name))),
             );
         }
         SnarkCmd::Run => {
-            let metadata =
-                read_metadata(data_path.join(PathBuf::from(format!("{}.json", circuit_name))));
+            let metadata = read_metadata(
+                cli.data_path
+                    .join(PathBuf::from(format!("{}.json", cli.name))),
+            );
             let circuit_id = metadata.circuit_id.clone();
-            let (pk, pinning) = read_pk_and_pinning(data_path.clone(), circuit_id, &runner);
+            let (pk, pinning) = read_pk_and_pinning(cli.data_path.clone(), circuit_id, &runner);
             let mut prover =
                 AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone()).use_inputs(input);
-            let srs = read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
+            let srs = read_srs_from_dir(&cli.srs, prover.k() as u32).expect("Unable to read SRS");
             let inner_output = run(&mut prover, &pk, &srs);
             let output = if should_aggregate {
                 let agg_circuit_id = metadata.agg_circuit_id.expect("No aggregation circuit ID");
                 let (agg_pk, agg_pinning) =
-                    read_agg_pk_and_pinning(data_path.clone(), agg_circuit_id);
-                let agg_srs = read_srs_from_dir(&srs_path, agg_pinning.params.degree)
+                    read_agg_pk_and_pinning(cli.data_path.clone(), agg_circuit_id);
+                let agg_srs = read_srs_from_dir(&cli.srs, agg_pinning.params.degree)
                     .expect("Unable to read SRS");
                 agg_circuit_run(agg_pinning, inner_output, &agg_pk, &agg_srs)
             } else {
@@ -230,8 +231,8 @@ pub fn run_cli_on_scaffold<
             };
             write_output(
                 output,
-                data_path.join(PathBuf::from("output.snark")),
-                data_path.join(PathBuf::from("output.json")),
+                cli.data_path.join(PathBuf::from("output.snark")),
+                cli.data_path.join(PathBuf::from("output.json")),
             );
         }
     }
@@ -244,5 +245,6 @@ where
     A::Input<AssignedValue<Fr>>: Debug,
 {
     env_logger::init();
-    run_cli_on_scaffold::<AxiomCompute<A>, A::LogicInput>();
+    let cli = AxiomCircuitRunnerOptions::parse();
+    run_cli_on_scaffold::<AxiomCompute<A>, A::LogicInput>(cli);
 }
