@@ -39,16 +39,6 @@ use crate::{
     Fr,
 };
 
-impl std::fmt::Display for SnarkCmd {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Mock => write!(f, "mock"),
-            Self::Keygen => write!(f, "keygen"),
-            Self::Run => write!(f, "run"),
-        }
-    }
-}
-
 /// Runs the CLI given on any struct that implements the `AxiomComputeFn` trait
 pub fn run_cli_on_scaffold<
     A: AxiomCircuitScaffold<Http, Fr>,
