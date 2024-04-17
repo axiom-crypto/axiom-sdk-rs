@@ -45,8 +45,9 @@ use crate::{
 pub fn run_cli_on_scaffold<
     A: AxiomCircuitScaffold<Http, Fr>,
     I: Into<A::InputValue> + DeserializeOwned,
->() {
-    let cli = AxiomCircuitRunnerOptions::parse();
+>(
+    cli: AxiomCircuitRunnerOptions,
+) {
     match cli.command {
         SnarkCmd::Mock | SnarkCmd::Run => {
             if cli.input_path.is_none() {
@@ -164,7 +165,7 @@ pub fn run_cli_on_scaffold<
         SnarkCmd::Keygen => {
             let srs = read_srs_from_dir_or_install(&srs_path, runner.k() as u32);
             let (vk, pk, pinning) = keygen(&mut runner, &srs);
-            write_keygen_output(&vk, &pk, &pinning, data_path.clone());
+            write_keygen_output(&vk, &pk, &pinning, cli.data_path.clone());
             let metadata = if should_aggregate {
                 if input.is_none() {
                     panic!("The `input` argument is required for keygen with aggregation.");
@@ -192,7 +193,7 @@ pub fn run_cli_on_scaffold<
                 );
                 let agg_params = agg_keygen_output.2.params;
                 let agg_vk = agg_keygen_output.0.clone();
-                write_agg_keygen_output(agg_keygen_output, data_path.clone());
+                write_agg_keygen_output(agg_keygen_output, cli.data_path.clone());
                 get_agg_axiom_client_circuit_metadata(
                     &runner,
                     &agg_kzg_params,
@@ -205,12 +206,15 @@ pub fn run_cli_on_scaffold<
             };
             write_metadata(
                 metadata,
-                data_path.join(PathBuf::from(format!("{}.json", circuit_name))),
+                cli.data_path
+                    .join(PathBuf::from(format!("{}.json", cli.name))),
             );
         }
         SnarkCmd::Run => {
-            let metadata =
-                read_metadata(data_path.join(PathBuf::from(format!("{}.json", circuit_name))));
+            let metadata = read_metadata(
+                cli.data_path
+                    .join(PathBuf::from(format!("{}.json", cli.name))),
+            );
             let circuit_id = metadata.circuit_id.clone();
             let (pk, pinning) = read_pk_and_pinning(data_path.clone(), circuit_id, &runner);
             let prover =
@@ -228,8 +232,8 @@ pub fn run_cli_on_scaffold<
             };
             write_output(
                 output,
-                data_path.join(PathBuf::from("output.snark")),
-                data_path.join(PathBuf::from("output.json")),
+                cli.data_path.join(PathBuf::from("output.snark")),
+                cli.data_path.join(PathBuf::from("output.json")),
             );
         }
     }
@@ -242,5 +246,6 @@ where
     A::Input<AssignedValue<Fr>>: Debug,
 {
     env_logger::init();
-    run_cli_on_scaffold::<AxiomCompute<A>, A::LogicInput>();
+    let cli = AxiomCircuitRunnerOptions::parse();
+    run_cli_on_scaffold::<AxiomCompute<A>, A::LogicInput>(cli);
 }

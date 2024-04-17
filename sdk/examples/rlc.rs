@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use axiom_circuit::axiom_eth::rlc::circuit::builder::RlcCircuitBuilder;
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
-    cmd::run_cli,
+    cli::run_cli,
     halo2_base::{
         gates::{GateInstructions, RangeChip, RangeInstructions},
         AssignedValue,
