@@ -13,3 +13,25 @@ Options:
   -h, --help                   Print help
   -V, --version                Print version
 ```
+
+## Routes
+
+### Start Proving Job
+- Type: POST
+- Path: `/start_proving_job`
+- Description: Accepts input data in JSON format to initiate a proving job and returns a job ID
+
+### Job Status
+- Type: GET
+- Path: `/job_status/<id>`
+- Description: Retrieves the status of a job by its ID
+
+### Data Query
+- Type: GET
+- Path: `/data_query/<id>`
+- Description: Fetches the data query associated with a job ID as soon as it is ready (before the full circuit output is ready)
+
+### Circuit Output
+- Type: GET
+- Path: `/circuit_output/<id>`
+- Description: Obtains the circuit output for a given job ID
