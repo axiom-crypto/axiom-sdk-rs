@@ -2,7 +2,7 @@ use std::{fmt::Debug, str::FromStr};
 
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
-    cmd::run_cli,
+    cli::run_cli,
     ethers::types::{Address, H256},
     halo2_base::AssignedValue,
     subquery::{AccountField, HeaderField, TxField},

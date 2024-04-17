@@ -1,76 +1,26 @@
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
+    env,
     hash::{Hash, Hasher},
     path::PathBuf,
-    sync::{Arc, Mutex},
 };
 
 use axiom_circuit::{
-    axiom_eth::{
-        halo2_proofs::{plonk::ProvingKey, poly::kzg::commitment::ParamsKZG},
-        halo2curves::bn256::{Bn256, Fr, G1Affine},
-        utils::build_utils::keygen::read_srs_from_dir,
-    },
+    axiom_eth::{halo2curves::bn256::Fr, utils::build_utils::keygen::read_srs_from_dir},
     run::{aggregation::agg_circuit_run, inner::run},
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
-    types::{
-        AggregationCircuitPinning, AxiomCircuitPinning, AxiomV2CircuitOutput, AxiomV2DataAndResults,
-    },
 };
-use clap::Parser;
 use ethers::providers::{Http, Provider};
 use rocket::State;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 
+use self::types::{
+    AggregationCircuitCtx, AxiomComputeCircuitCtx, AxiomComputeCtx, AxiomComputeJobStatus,
+    AxiomComputeManager, AxiomComputeServerCmd,
+};
 use crate::utils::io::{read_agg_pk_and_pinning, read_metadata, read_pinning, read_pk};
 
-#[derive(Clone, Debug)]
-pub struct AxiomComputeCircuitCtx {
-    pub pk: ProvingKey<G1Affine>,
-    pub pinning: AxiomCircuitPinning,
-    pub params: ParamsKZG<Bn256>,
-}
-
-#[derive(Clone, Debug)]
-pub struct AggregationCircuitCtx {
-    pub pk: ProvingKey<G1Affine>,
-    pub pinning: AggregationCircuitPinning,
-    pub params: ParamsKZG<Bn256>,
-}
-
-#[derive(Clone, Debug)]
-pub struct AxiomComputeCtx {
-    pub child: AxiomComputeCircuitCtx,
-    pub agg: Option<AggregationCircuitCtx>,
-    pub provider: Provider<Http>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub enum AxiomComputeJobStatus {
-    Received,
-    DataQueryReady,
-    InnerOutputReady,
-    OutputReady,
-    Error,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct AxiomComputeManager {
-    pub job_queue: Arc<Mutex<Vec<u64>>>,
-    pub inputs: Arc<Mutex<HashMap<u64, String>>>,
-    pub job_status: Arc<Mutex<HashMap<u64, AxiomComputeJobStatus>>>,
-    pub data_query: Arc<Mutex<HashMap<u64, AxiomV2DataAndResults>>>,
-    pub outputs: Arc<Mutex<HashMap<u64, AxiomV2CircuitOutput>>>,
-}
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-pub struct AxiomComputeServerCmd {
-    pub data_path: String,
-    pub circuit_name: String,
-    pub provider: String,
-    pub srs_path: String,
-}
+pub mod types;
 
 pub async fn add_job(ctx: &State<AxiomComputeManager>, job: String) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -161,7 +111,10 @@ pub fn initialize<A: AxiomCircuitScaffold<Http, Fr>>(
     let srs_path = PathBuf::from(options.srs_path);
     let metadata =
         read_metadata(data_path.join(PathBuf::from(format!("{}.json", options.circuit_name))));
-    let provider = Provider::<Http>::try_from(options.provider).unwrap();
+    let provider_uri = options
+        .provider
+        .unwrap_or_else(|| env::var("PROVIDER_URI").expect("The `provider` argument is required. Either pass it as an argument or set the `PROVIDER_URI` environment variable."));
+    let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let circuit_id = metadata.circuit_id.clone();
     let pinning = read_pinning(data_path.join(format!("{}.pinning", circuit_id)));
     let runner = AxiomCircuit::<Fr, Http, A>::new(provider.clone(), pinning.clone().params)
@@ -247,17 +200,17 @@ macro_rules! axiom_compute_prover_server {
         #[rocket::post("/start_proving_job", format = "json", data = "<req>")]
         pub async fn start_proving_job(
             req: rocket::serde::json::Json<$I>,
-            ctx: &rocket::State<$crate::server::AxiomComputeManager>,
+            ctx: &rocket::State<$crate::server::types::AxiomComputeManager>,
         ) -> String {
             let input = serde_json::to_string(&req.into_inner()).unwrap();
             let id = $crate::server::add_job(ctx, input).await;
             id.to_string()
         }
 
-        #[rocket::main]
-        async fn main() -> Result<(), rocket::Error> {
-            let options = <$crate::server::AxiomComputeServerCmd as clap::Parser>::parse();
-            let job_queue: $crate::server::AxiomComputeManager = Default::default();
+        async fn server(
+            options: $crate::server::types::AxiomComputeServerCmd,
+        ) -> Result<(), rocket::Error> {
+            let job_queue: $crate::server::types::AxiomComputeManager = Default::default();
             let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
             let worker_manager = job_queue.clone();
             std::thread::spawn(|| {

@@ -135,7 +135,7 @@ pub mod axiom {
     };
 }
 /// Contains a CLI for running any Axiom Compute function (any struct that implements the `AxiomComputeFn` trait)
-pub mod cmd;
+pub mod cli;
 /// Contains the traits and types required to implement an Axiom Compute function (re-exported from the `axiom` module)
 pub(crate) mod compute;
 /// Contains a web server for running any Axiom Compute function (any struct that implements the `AxiomComputeFn` trait)
@@ -144,5 +144,7 @@ pub mod server;
 pub mod subquery;
 /// Re-export ethers-rs
 pub use ethers;
+/// Run either the proving/keygen CLI or the server from the same binary
+pub mod bin;
 /// Module with utility functions for running the CLI
 pub mod utils;
