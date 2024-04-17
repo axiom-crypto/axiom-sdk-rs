@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 
-use crate::{cli::types::AxiomCircuitRunnerOptions, server::types::AxiomComputeServerCmd};
+use crate::{
+    cli::types::AxiomCircuitRunnerOptions, dockerize::DockerizeCmd,
+    server::types::AxiomComputeServerCmd,
+};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -15,6 +18,8 @@ pub enum Commands {
     Serve(AxiomComputeServerCmd),
     /// Run keygen and real/mock proving
     Run(AxiomCircuitRunnerOptions),
+    /// To generate a Dockerfile for running the circuit binary
+    Dockerize(DockerizeCmd),
 }
 
 #[macro_export]
@@ -27,15 +32,6 @@ macro_rules! axiom_main {
         #[tokio::main]
         async fn main() {
             env_logger::init();
-            // for (key, value) in std::env::vars() {
-            //     println!("{}: {}", key, value);
-            // }
-            // dbg!(std::file!());
-            let manifest_dir =
-                std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| String::from("."));
-            let args: Vec<String> = std::env::args().collect();
-            dbg!(manifest_dir);
-            dbg!(args);
             let cli = <$crate::bin::Cli as clap::Parser>::parse();
             match cli.command {
                 $crate::bin::Commands::Serve(args) => {
@@ -46,6 +42,10 @@ macro_rules! axiom_main {
                         $crate::cli::run_cli_on_scaffold::<$A, $I>(args);
                     });
                     thread.join().unwrap();
+                }
+                $crate::bin::Commands::Dockerize(args) => {
+                    let env_args: Vec<String> = std::env::args().collect();
+                    $crate::dockerize::gen_dockerfile(env_args, args);
                 }
             }
         }
