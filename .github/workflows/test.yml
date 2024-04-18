@@ -39,8 +39,8 @@ jobs:
         run: |
           export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
           mkdir data
-          # cargo run --example keccak -- --input sdk/data/keccak_input.json -k 15 -c sdk/data/keccak_config.json keygen
-          # cargo run --example keccak -- --input sdk/data/keccak_input.json -k 15 -c sdk/data/keccak_config.json run
+          cargo run --example keccak -- --input sdk/data/keccak_input.json -k 15 -c sdk/data/keccak_config.json keygen
+          cargo run --example keccak -- --input sdk/data/keccak_input.json -k 15 -c sdk/data/keccak_config.json run
           cargo run --example rlc -- --input sdk/data/rlc_input.json -k 15 -c sdk/data/rlc_config.json keygen
           cargo run --example rlc -- --input sdk/data/rlc_input.json -k 15 -c sdk/data/rlc_config.json run
           cargo run --example account_age -- --input sdk/data/account_age_input.json -k 15 keygen
