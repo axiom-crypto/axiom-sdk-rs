@@ -2,29 +2,38 @@ use std::{
     env,
     fmt::Debug,
     fs::{self, File},
-    io::BufWriter,
     path::PathBuf,
 };
 
 use axiom_circuit::{
+    axiom_codec::constants::{USER_MAX_OUTPUTS, USER_MAX_SUBQUERIES},
     axiom_eth::{
         halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
-        halo2_proofs::{plonk::ProvingKey, SerdeFormat},
-        halo2curves::bn256::G1Affine,
         rlc::circuit::RlcCircuitParams,
-        utils::keccak::decorator::RlcKeccakCircuitParams,
+        utils::{
+            build_utils::keygen::read_srs_from_dir, keccak::decorator::RlcKeccakCircuitParams,
+            snark_verifier::AggregationCircuitParams,
+        },
     },
-    scaffold::AxiomCircuit,
-    types::{AxiomCircuitParams, AxiomCircuitPinning},
+    run::{
+        aggregation::{agg_circuit_keygen, agg_circuit_run},
+        inner::{keygen, mock, run},
+    },
+    scaffold::{AxiomCircuit, AxiomCircuitScaffold},
+    types::AxiomCircuitParams,
 };
 pub use clap::Parser;
 use clap::Subcommand;
 use ethers::providers::{Http, Provider};
 use log::warn;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     compute::{AxiomCompute, AxiomComputeFn},
+    utils::io::{
+        read_agg_pinning, read_agg_pk, read_pinning, read_pk, write_agg_pinning, write_output,
+        write_pinning, write_pk,
+    },
     Fr,
 };
 
@@ -35,8 +44,6 @@ pub enum SnarkCmd {
     Mock,
     /// Generate new proving & verifying keys
     Keygen,
-    /// Generate a new proof
-    Prove,
     /// Generate an Axiom compute query
     Run,
 }
@@ -51,6 +58,9 @@ pub struct RawCircuitParams {
     pub lookup_bits: Option<usize>,
     pub num_rlc_columns: Option<usize>,
     pub keccak_rows_per_round: Option<usize>,
+    pub max_outputs: Option<usize>,
+    pub max_subqueries: Option<usize>,
+    pub agg_params: Option<AggregationCircuitParams>,
 }
 
 impl std::fmt::Display for SnarkCmd {
@@ -58,7 +68,6 @@ impl std::fmt::Display for SnarkCmd {
         match self {
             Self::Mock => write!(f, "mock"),
             Self::Keygen => write!(f, "keygen"),
-            Self::Prove => write!(f, "prove"),
             Self::Run => write!(f, "run"),
         }
     }
@@ -67,7 +76,7 @@ impl std::fmt::Display for SnarkCmd {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 /// Command-line helper for building Axiom compute circuits
-pub struct Cli {
+pub struct AxiomCircuitRunnerOptions {
     #[command(subcommand)]
     /// The command to run
     pub command: SnarkCmd,
@@ -99,17 +108,29 @@ pub struct Cli {
     )]
     /// The path to a custom circuit configuration
     pub config: Option<PathBuf>,
+    #[arg(
+        long = "srs",
+        help = "For specifying custom KZG params directory (defaults to `params`)"
+    )]
+    /// The path to the KZG params folder
+    pub srs: Option<PathBuf>,
+    #[arg(
+        long = "aggregate",
+        help = "Whether to aggregate the output (defaults to false)",
+        action
+    )]
+    /// Whether to aggregate the output
+    pub should_aggregate: bool,
 }
 
 /// Runs the CLI given on any struct that implements the `AxiomComputeFn` trait
-pub fn run_cli<A: AxiomComputeFn>()
-where
-    A::Input<Fr>: Default + Debug,
-    A::Input<AssignedValue<Fr>>: Debug,
-{
-    let cli = Cli::parse();
+pub fn run_cli_on_scaffold<
+    A: AxiomCircuitScaffold<Http, Fr>,
+    I: Into<A::InputValue> + DeserializeOwned,
+>() {
+    let cli = AxiomCircuitRunnerOptions::parse();
     match cli.command {
-        SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::Run => {
+        SnarkCmd::Mock | SnarkCmd::Run => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
             }
@@ -128,18 +149,31 @@ where
             }
         }
     }
-    let input_path = cli.input_path.unwrap();
-    let json_str = fs::read_to_string(input_path).expect("Unable to read file");
-    let input: A::LogicInput = serde_json::from_str(&json_str).expect("Unable to parse JSON");
+    let input: Option<A::InputValue> = cli.input_path.map(|input_path| {
+        let json_str = fs::read_to_string(input_path).expect("Unable to read file");
+        let input: I = serde_json::from_str(&json_str).expect("Unable to parse JSON");
+        input.into()
+    });
     let provider_uri = cli
         .provider
         .unwrap_or_else(|| env::var("PROVIDER_URI").expect("The `provider` argument is required for the selected command. Either pass it as an argument or set the `PROVIDER_URI` environment variable."));
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
+    let srs_path = cli.srs.unwrap_or_else(|| PathBuf::from("params"));
 
-    let params = if let Some(config) = cli.config {
+    let mut max_user_outputs = USER_MAX_OUTPUTS;
+    let mut max_subqueries = USER_MAX_SUBQUERIES;
+
+    let mut agg_circuit_params: Option<AggregationCircuitParams> = None;
+
+    let params = if let Some(config) = cli.config.clone() {
         let f = File::open(config).unwrap();
         let raw_params: RawCircuitParams = serde_json::from_reader(f).unwrap();
+        agg_circuit_params = raw_params.agg_params;
+
+        max_user_outputs = raw_params.max_outputs.unwrap_or(USER_MAX_OUTPUTS);
+        max_subqueries = raw_params.max_subqueries.unwrap_or(USER_MAX_SUBQUERIES);
+
         let base_params = BaseCircuitParams {
             k: raw_params.k,
             num_advice_per_phase: raw_params.num_advice_per_phase,
@@ -176,91 +210,89 @@ where
         })
     };
 
+    let should_aggregate = cli.should_aggregate;
+
+    let mut runner = AxiomCircuit::<Fr, Http, A>::new(provider.clone(), params)
+        .use_max_user_outputs(max_user_outputs)
+        .use_max_user_subqueries(max_subqueries);
+
     match cli.command {
         SnarkCmd::Mock => {
-            AxiomCompute::<A>::new()
-                .use_inputs(input)
-                .use_params(params)
-                .use_provider(provider)
-                .mock();
+            runner.set_inputs(input);
+            mock(&mut runner);
         }
         SnarkCmd::Keygen => {
-            let circuit = AxiomCompute::<A>::new()
-                .use_params(params)
-                .use_provider(provider);
-            let (_, pkey, pinning) = circuit.keygen();
-            let pk_path = data_path.join(PathBuf::from("pk.bin"));
-            if pk_path.exists() {
-                fs::remove_file(&pk_path).unwrap();
-            }
-            let f = File::create(&pk_path)
-                .unwrap_or_else(|_| panic!("Could not create file at {pk_path:?}"));
-            let mut writer = BufWriter::new(f);
-            pkey.write(&mut writer, SerdeFormat::RawBytes)
-                .expect("writing pkey should not fail");
-            // let vk_path = data_path.join(PathBuf::from("vk.bin"));
-            // if vk_path.exists() {
-            //     fs::remove_file(&vk_path).unwrap();
-            // }
-            // let f = File::create(&vk_path)
-            //     .unwrap_or_else(|_| panic!("Could not create file at {vk_path:?}"));
-            // let mut writer = BufWriter::new(f);
-            // vkey.write(&mut writer, SerdeFormat::RawBytes)
-            //     .expect("writing vkey should not fail");
+            let srs = read_srs_from_dir(&srs_path, runner.k() as u32).expect("Unable to read SRS");
+            let (_, pk, pinning) = keygen(&mut runner, &srs);
+            write_pk(&pk, data_path.join(PathBuf::from("pk.bin")));
+            if should_aggregate {
+                if input.is_none() {
+                    panic!("The `input` argument is required for keygen with aggregation.");
+                }
+                if cli.config.is_none() {
+                    panic!("The `config` argument is required for keygen with aggregation.");
+                }
+                if agg_circuit_params.is_none() {
+                    panic!("The `agg_params` field in `config` is required for keygen with aggregation.");
+                }
 
-            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
-            if pinning_path.exists() {
-                fs::remove_file(&pinning_path).unwrap();
+                let mut prover = AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone())
+                    .use_inputs(input);
+                let output = run(&mut prover, &pk, &srs);
+                let agg_kzg_params =
+                    read_srs_from_dir(&srs_path, agg_circuit_params.unwrap().degree as u32)
+                        .expect("Unable to read SRS");
+                let (_, agg_pk, agg_pinning) = agg_circuit_keygen(
+                    agg_circuit_params.unwrap(),
+                    output.snark,
+                    pinning,
+                    &agg_kzg_params,
+                );
+                write_pk(&agg_pk, data_path.join(PathBuf::from("agg_pk.bin")));
+                write_agg_pinning(&agg_pinning, data_path.join(PathBuf::from("pinning.json")));
+            } else {
+                write_pinning(&pinning, data_path.join(PathBuf::from("pinning.json")));
             }
-            let f = File::create(&pinning_path)
-                .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
-            serde_json::to_writer_pretty(&f, &pinning)
-                .expect("writing circuit pinning should not fail");
-        }
-        SnarkCmd::Prove => {
-            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
-            let f = File::open(pinning_path).unwrap();
-            let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
-            let compute = AxiomCompute::<A>::new()
-                .use_pinning(pinning.clone())
-                .use_provider(provider);
-            let pk_path = data_path.join(PathBuf::from("pk.bin"));
-            let mut f = File::open(pk_path).unwrap();
-            let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
-                &mut f,
-                SerdeFormat::RawBytes,
-                pinning.params,
-            )
-            .unwrap();
-            compute.use_inputs(input).prove(pk);
         }
         SnarkCmd::Run => {
-            let pinning_path = data_path.join(PathBuf::from("pinning.json"));
-            let f = File::open(pinning_path).unwrap();
-            let pinning: AxiomCircuitPinning = serde_json::from_reader(f).unwrap();
-            let compute = AxiomCompute::<A>::new()
-                .use_pinning(pinning.clone())
-                .use_provider(provider);
-            let pk_path = data_path.join(PathBuf::from("pk.bin"));
-            let mut f = File::open(pk_path).unwrap();
-            let pk = ProvingKey::<G1Affine>::read::<_, AxiomCircuit<Fr, Http, AxiomCompute<A>>>(
-                &mut f,
-                SerdeFormat::RawBytes,
-                pinning.params,
-            )
-            .unwrap();
-            let output = compute.use_inputs(input).run(pk);
-            let output_path = data_path.join(PathBuf::from("output.snark"));
-            let f = File::create(&output_path)
-                .unwrap_or_else(|_| panic!("Could not create file at {output_path:?}"));
-            bincode::serialize_into(f, &output.snark).expect("Writing SNARK should not fail");
-            let output_json_path = data_path.join(PathBuf::from("output.json"));
-            if output_json_path.exists() {
-                fs::remove_file(&output_json_path).unwrap();
-            }
-            let f = File::create(&output_json_path)
-                .unwrap_or_else(|_| panic!("Could not create file at {output_json_path:?}"));
-            serde_json::to_writer_pretty(&f, &output.data).expect("Writing output should not fail");
+            let output = if should_aggregate {
+                let pinning = read_agg_pinning(data_path.join(PathBuf::from("pinning.json")));
+                let mut prover =
+                    AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone().child_pinning)
+                        .use_inputs(input);
+                let pk = read_pk(data_path.join(PathBuf::from("pk.bin")), &prover);
+                let srs =
+                    read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
+                let inner_output = run(&mut prover, &pk, &srs);
+                let agg_pk =
+                    read_agg_pk(data_path.join(PathBuf::from("agg_pk.bin")), pinning.params);
+                let agg_srs = read_srs_from_dir(&srs_path, pinning.params.degree as u32)
+                    .expect("Unable to read SRS");
+                agg_circuit_run(pinning, inner_output, agg_pk, &agg_srs)
+            } else {
+                let pinning = read_pinning(data_path.join(PathBuf::from("pinning.json")));
+                let mut prover = AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone())
+                    .use_inputs(input);
+                let pk = read_pk(data_path.join(PathBuf::from("pk.bin")), &prover);
+                let srs =
+                    read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
+                run(&mut prover, &pk, &srs)
+            };
+            write_output(
+                output,
+                data_path.join(PathBuf::from("output.snark")),
+                data_path.join(PathBuf::from("output.json")),
+            );
         }
     }
+}
+
+/// Runs the CLI given on any struct that implements the `AxiomComputeFn` trait
+pub fn run_cli<A: AxiomComputeFn>()
+where
+    A::Input<Fr>: Default + Debug,
+    A::Input<AssignedValue<Fr>>: Debug,
+{
+    env_logger::init();
+    run_cli_on_scaffold::<AxiomCompute<A>, A::LogicInput>();
 }

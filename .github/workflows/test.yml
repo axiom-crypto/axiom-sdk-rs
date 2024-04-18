@@ -9,8 +9,15 @@ on:
 jobs:
   axiom-sdk-rust-client:
     runs-on: ubuntu-latest-64core-256ram
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     steps:
       - uses: actions/checkout@v3
+      - name: Give GitHub Actions access to axiom-crypto/axiom-eth-working
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.AXIOM_ETH_DEPLOY_PRIVATE_KEY }}
       - name: Build rust client
         run: |
           cargo build --verbose
@@ -19,9 +26,11 @@ jobs:
           mkdir params
           for k in {5..21}
           do
-            wget "https://axiom-crypto.s3.amazonaws.com/challenge_0078/kzg_bn254_${k}.srs"
+            wget "https://axiom-crypto.s3.amazonaws.com/challenge_0085/kzg_bn254_${k}.srs"
           done
           mv *.srs params/
+          mkdir circuit/params
+          cp params/*.srs circuit/params/
       - name: Test rust client
         run: |
           export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}

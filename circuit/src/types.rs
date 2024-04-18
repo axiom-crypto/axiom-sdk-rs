@@ -1,12 +1,18 @@
 use axiom_codec::types::native::AxiomV2ComputeQuery;
 use axiom_query::axiom_eth::{
-    halo2_base::gates::circuit::{BaseCircuitParams, BaseConfig},
+    halo2_base::gates::{
+        circuit::{BaseCircuitParams, BaseConfig},
+        flex_gate::MultiPhaseThreadBreakPoints,
+    },
     rlc::{
         circuit::{RlcCircuitParams, RlcConfig},
         virtual_region::RlcThreadBreakPoints,
     },
     snark_verifier_sdk::Snark,
-    utils::keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
+    utils::{
+        keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
+        snark_verifier::AggregationCircuitParams,
+    },
     Field,
 };
 use ethers::types::H256;
@@ -38,6 +44,15 @@ impl Default for AxiomCircuitParams {
 pub struct AxiomCircuitPinning {
     pub params: AxiomCircuitParams,
     pub break_points: RlcThreadBreakPoints,
+    pub max_user_outputs: usize,
+    pub max_user_subqueries: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregationCircuitPinning {
+    pub child_pinning: AxiomCircuitPinning,
+    pub break_points: MultiPhaseThreadBreakPoints,
+    pub params: AggregationCircuitParams,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]

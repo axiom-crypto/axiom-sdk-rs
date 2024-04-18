@@ -1,5 +1,5 @@
-pub mod base;
-pub mod keccak;
-pub mod rlc;
-mod shared_tests;
-mod utils;
+mod base;
+mod keccak;
+mod rlc;
+pub mod shared_tests;
+pub mod utils;

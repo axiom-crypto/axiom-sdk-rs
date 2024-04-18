@@ -161,6 +161,7 @@ impl Serialize for RawSubquery {
             AnySubquery::Transaction(ref inner) => inner.serialize(serializer),
             AnySubquery::Receipt(ref inner) => inner.serialize(serializer),
             AnySubquery::SolidityNestedMapping(ref inner) => inner.serialize(serializer),
+            _ => Err(serde::ser::Error::custom("Unsupported subquery type")),
         }
     }
 }

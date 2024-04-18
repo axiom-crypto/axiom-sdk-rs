@@ -142,3 +142,5 @@ pub(crate) mod compute;
 pub mod subquery;
 /// Re-export ethers-rs
 pub use ethers;
+/// Module with utility functions for running the CLI
+pub mod utils;

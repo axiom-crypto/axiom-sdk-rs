@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use axiom_codec::HiLo;
+use axiom_codec::{constants::USER_MAX_OUTPUTS, HiLo};
 use axiom_query::{
     axiom_eth::{
         halo2_base::{
@@ -25,7 +25,7 @@ use ethers::providers::{Http, JsonRpcClient};
 use test_case::test_case;
 
 use super::{
-    shared_tests::{check_compute_proof_format, check_compute_query_format, single_instance_test},
+    shared_tests::single_instance_test,
     utils::{all_subqueries_call, mapping_call, receipt_call, storage_call, tx_call},
 };
 use crate::{
@@ -39,7 +39,7 @@ use crate::{
     subquery::caller::SubqueryCaller,
     tests::utils::{account_call, header_call, EmptyCircuitInput},
     types::AxiomCircuitParams,
-    utils::get_provider,
+    utils::{check_compute_proof_format, check_compute_query_format, get_provider},
     witness,
 };
 
@@ -119,8 +119,11 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_keccak_test_params();
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
-    let (_, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let snark = prove::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let snark = prove::<_, S>(&mut runner, pk, &kzg_params);
     agg_circuit_mock(agg_circuit_params, snark);
 }
 
@@ -138,8 +141,11 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circui
     let num_user_output_fe = runner.output_num_instances();
     let subquery_fe = runner.subquery_num_instances();
     let results = runner.scaffold_output();
-    let (_, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let snark = prove::<_, S>(client, pinning, None, pk);
+    let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning);
+    let snark = prove::<_, S>(&mut runner, pk, &kzg_params);
     let agg_circuit =
         create_aggregation_circuit(agg_circuit_params, snark.clone(), CircuitBuilderStage::Mock);
     let instances = agg_circuit.instances();
@@ -163,17 +169,19 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_keccak_test_params();
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
-    let (_vk, pk, pinning) = keygen::<_, S>(client.clone(), params.clone(), None);
-    let output = run::<_, S>(client, pinning, None, pk);
-    let (agg_vk, agg_pk, agg_break_points) =
-        agg_circuit_keygen(agg_circuit_params, output.snark.clone());
-    let final_output = agg_circuit_run(
+    let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
+    let kzg_params = gen_srs(runner.k() as u32);
+    let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
+    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning.clone());
+    let output = run::<_, S>(&mut runner, &pk, &kzg_params);
+    let agg_kzg_params = gen_srs(agg_circuit_params.degree);
+    let (agg_vk, agg_pk, agg_pinning) = agg_circuit_keygen(
         agg_circuit_params,
         output.snark.clone(),
-        agg_pk,
-        agg_break_points,
-        output.data,
+        pinning,
+        &agg_kzg_params,
     );
+    let final_output = agg_circuit_run(agg_pinning, output.clone(), agg_pk, &agg_kzg_params);
     let circuit = create_aggregation_circuit(
         agg_circuit_params,
         output.snark.clone(),
@@ -184,6 +192,7 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
         final_output.clone(),
         AxiomCircuitParams::Base(circuit.builder.config_params),
         agg_vk,
+        USER_MAX_OUTPUTS,
     );
     // TEMP
     let kzg_params = gen_srs(agg_circuit_params.degree);
