@@ -9,6 +9,8 @@ on:
 jobs:
   axiom-sdk-rust-client:
     runs-on: ubuntu-latest-64core-256ram
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     steps:
       - uses: actions/checkout@v3
       - name: Give GitHub Actions access to axiom-crypto/axiom-eth-working
