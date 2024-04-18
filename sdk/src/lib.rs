@@ -138,6 +138,8 @@ pub mod axiom {
 pub mod cmd;
 /// Contains the traits and types required to implement an Axiom Compute function (re-exported from the `axiom` module)
 pub(crate) mod compute;
+/// Contains a web server for running any Axiom Compute function (any struct that implements the `AxiomComputeFn` trait)
+pub mod server;
 /// Module with all subquery types and builders
 pub mod subquery;
 /// Re-export ethers-rs
