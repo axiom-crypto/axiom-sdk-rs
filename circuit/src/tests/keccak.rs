@@ -26,7 +26,7 @@ use test_case::test_case;
 
 use super::{
     shared_tests::single_instance_test,
-    utils::{all_subqueries_call, ecdsa_call, mapping_call, receipt_call, storage_call, tx_call},
+    utils::{all_subqueries_call, mapping_call, receipt_call, storage_call, tx_call},
 };
 use crate::{
     aggregation::create_aggregation_circuit,
