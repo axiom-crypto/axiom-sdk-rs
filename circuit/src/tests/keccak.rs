@@ -25,8 +25,8 @@ use ethers::providers::{Http, JsonRpcClient};
 use test_case::test_case;
 
 use super::{
-    shared_tests::{check_compute_proof_format, check_compute_query_format, single_instance_test},
-    utils::{all_subqueries_call, mapping_call, receipt_call, storage_call, tx_call},
+    shared_tests::single_instance_test,
+    utils::{all_subqueries_call, ecdsa_call, mapping_call, receipt_call, storage_call, tx_call},
 };
 use crate::{
     aggregation::create_aggregation_circuit,
