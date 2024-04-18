@@ -29,6 +29,8 @@ jobs:
             wget "https://axiom-crypto.s3.amazonaws.com/challenge_0085/kzg_bn254_${k}.srs"
           done
           mv *.srs params/
+          mkdir circuit/params
+          cp params/*.srs circuit/params/
       - name: Test rust client
         run: |
           export PROVIDER_URI=${{ secrets.PROVIDER_URI_SEPOLIA }}
