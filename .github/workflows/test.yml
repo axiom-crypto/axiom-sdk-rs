@@ -19,7 +19,7 @@ jobs:
           mkdir params
           for k in {5..21}
           do
-            wget "https://axiom-crypto.s3.amazonaws.com/challenge_0078/kzg_bn254_${k}.srs"
+            wget "https://axiom-crypto.s3.amazonaws.com/challenge_0085/kzg_bn254_${k}.srs"
           done
           mv *.srs params/
       - name: Test rust client
