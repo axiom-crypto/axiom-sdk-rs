@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest-64core-256ram
     steps:
       - uses: actions/checkout@v3
+      - name: Give GitHub Actions access to axiom-crypto/axiom-eth-working
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.AXIOM_ETH_DEPLOY_PRIVATE_KEY }}
       - name: Build rust client
         run: |
           cargo build --verbose
