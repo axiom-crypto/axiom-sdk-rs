@@ -11,7 +11,7 @@ pub trait InputFlatten<T: Copy>: Sized {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FixLenVec<T: Copy + Default, const N: usize>(pub Vec<T>);
+pub struct FixLenVec<T: Copy, const N: usize>(pub Vec<T>);
 
 impl<T: Copy + Default, const N: usize> Default for FixLenVec<T, N> {
     fn default() -> Self {
@@ -19,7 +19,7 @@ impl<T: Copy + Default, const N: usize> Default for FixLenVec<T, N> {
     }
 }
 
-impl<T: Copy + Default, const N: usize> FixLenVec<T, N> {
+impl<T: Copy, const N: usize> FixLenVec<T, N> {
     pub fn new(vec: Vec<T>) -> anyhow::Result<Self> {
         if vec.len() != N {
             anyhow::bail!("Invalid input length: {} != {}", vec.len(), N);
