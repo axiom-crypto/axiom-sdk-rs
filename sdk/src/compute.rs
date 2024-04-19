@@ -272,13 +272,12 @@ where
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        let mut runner =
-            AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
-                .use_inputs(converted_input)
-                .use_max_user_outputs(self.max_user_outputs)
-                .use_max_user_subqueries(self.max_user_subqueries);
+        let runner = AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
+            .use_inputs(converted_input)
+            .use_max_user_outputs(self.max_user_outputs)
+            .use_max_user_subqueries(self.max_user_subqueries);
         let kzg_params = self.kzg_params.clone().expect("KZG params not set");
-        run::<Http, Self>(&mut runner, &pk, &kzg_params)
+        run::<Http, Self>(runner, &pk, &kzg_params)
     }
 
     /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait

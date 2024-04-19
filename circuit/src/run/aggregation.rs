@@ -42,7 +42,7 @@ pub fn agg_circuit_keygen<T>(
 ) {
     let mut circuit =
         create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Keygen);
-    let mut calculated_params = agg_circuit_params.clone();
+    let mut calculated_params = agg_circuit_params;
     if should_calculate_params {
         calculated_params = circuit.calculate_params(Some(100));
     }

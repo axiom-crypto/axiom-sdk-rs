@@ -1,62 +1,38 @@
+use std::{fs::File, path::Path};
+
+use axiom_circuit::axiom_eth::{
+    halo2_proofs::poly::kzg::commitment::ParamsKZG, halo2curves::bn256::Bn256,
+    utils::build_utils::keygen::read_srs_from_dir,
+};
+
 pub mod io;
 
-// unused for now
-// #[macro_export]
-// macro_rules! axiom_compute_tests {
-//     ($input_struct:ident, $inputs:ident, $k: expr) => {
-//         fn params() -> axiom_circuit::axiom_eth::halo2_base::gates::circuit::BaseCircuitParams {
-//             axiom_circuit::axiom_eth::halo2_base::gates::circuit::BaseCircuitParams {
-//                 k: $k,
-//                 num_advice_per_phase: vec![4],
-//                 num_fixed: 1,
-//                 num_lookup_advice_per_phase: vec![1],
-//                 lookup_bits: Some($k - 1),
-//                 num_instance_columns: 1,
-//             }
-//         }
+pub fn read_srs_from_dir_or_install(params_dir: &Path, k: u32) -> ParamsKZG<Bn256> {
+    if !params_dir.exists() {
+        std::fs::create_dir_all(params_dir).expect("Failed to create SRS path directory");
+    }
+    let srs_file_path = params_dir.join(format!("kzg_bn254_{}.srs", k));
+    if !srs_file_path.exists() {
+        log::info!("SRS file not found at: {}", srs_file_path.display());
+        log::info!("Downloading SRS file...");
 
-//         use std::env;
+        let srs_url = format!(
+            "https://axiom-crypto.s3.amazonaws.com/challenge_0085/kzg_bn254_{}.srs",
+            k
+        );
+        let response = reqwest::blocking::get(srs_url).expect("Failed to download SRS file");
 
-//         use ethers::providers::{Http, Provider};
-
-//         pub fn provider() -> Provider<Http> {
-//             Provider::<Http>::try_from(env::var("PROVIDER_URI").expect("PROVIDER_URI not set"))
-//                 .unwrap()
-//         }
-
-//         #[test]
-//         fn mock() {
-//             $crate::compute::AxiomCompute::<$input_struct>::new()
-//                 .use_inputs($inputs())
-//                 .use_params(params())
-//                 .use_provider($crate::utils::provider())
-//                 .mock();
-//         }
-
-//         #[test]
-//         fn keygen() {
-//             $crate::compute::AxiomCompute::<$input_struct>::new()
-//                 .use_params(params())
-//                 .use_provider($crate::utils::provider())
-//                 .keygen();
-//         }
-
-//         #[test]
-//         fn prove() {
-//             let compute = $crate::compute::AxiomCompute::<$input_struct>::new()
-//                 .use_params(params())
-//                 .use_provider($crate::utils::provider());
-//             let (_vk, pk) = compute.keygen();
-//             compute.use_inputs($inputs()).prove(pk);
-//         }
-
-//         #[test]
-//         fn run() {
-//             let compute = $crate::compute::AxiomCompute::<$input_struct>::new()
-//                 .use_params(params())
-//                 .use_provider($crate::utils::provider());
-//             let (_vk, pk) = compute.keygen();
-//             compute.use_inputs($inputs()).run(pk);
-//         }
-//     };
-// }
+        if response.status().is_success() {
+            let mut file = File::create(&srs_file_path).expect("Failed to create file for SRS");
+            let content = response.bytes().expect("Failed to read response bytes");
+            std::io::copy(&mut content.as_ref(), &mut file).expect("Failed to write SRS file");
+            log::info!("SRS file downloaded successfully.");
+        } else {
+            panic!(
+                "Failed to download SRS file. HTTP Error: {}",
+                response.status()
+            );
+        }
+    }
+    read_srs_from_dir(params_dir, k).expect("Unable to read SRS")
+}

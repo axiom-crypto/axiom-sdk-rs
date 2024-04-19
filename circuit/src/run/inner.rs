@@ -72,7 +72,7 @@ pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 }
 
 pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
-    circuit: &mut AxiomCircuit<Fr, P, S>,
+    circuit: AxiomCircuit<Fr, P, S>,
     pk: &ProvingKey<G1Affine>,
     params: &ParamsKZG<Bn256>,
 ) -> AxiomV2CircuitOutput {
@@ -81,7 +81,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let k = circuit_params.k();
     let output = circuit.scaffold_output();
     let max_user_outputs = circuit.max_user_outputs;
-    let snark = gen_snark_shplonk(params, pk, circuit.clone(), None::<&str>);
+    let snark = gen_snark_shplonk(params, pk, circuit, None::<&str>);
     let compute_query = match raw_circuit_params {
         AxiomCircuitParams::Base(_) => build_axiom_v2_compute_query(
             snark.clone(),
@@ -126,7 +126,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
             circuit_output.clone(),
             raw_circuit_params,
             vk.clone(),
-            circuit.max_user_outputs,
+            max_user_outputs,
         );
         verify_snark(&DK, &circuit_output.snark)
             .expect("Client snark failed to verify. Make sure you are using the right KZG params.");

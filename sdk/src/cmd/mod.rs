@@ -11,8 +11,7 @@ use axiom_circuit::{
         halo2_base::{gates::circuit::BaseCircuitParams, AssignedValue},
         rlc::circuit::RlcCircuitParams,
         utils::{
-            build_utils::keygen::read_srs_from_dir, keccak::decorator::RlcKeccakCircuitParams,
-            snark_verifier::AggregationCircuitParams,
+            keccak::decorator::RlcKeccakCircuitParams, snark_verifier::AggregationCircuitParams,
         },
     },
     run::{
@@ -32,9 +31,12 @@ pub mod types;
 use self::types::{AxiomCircuitRunnerOptions, RawCircuitParams, SnarkCmd};
 use crate::{
     compute::{AxiomCompute, AxiomComputeFn},
-    utils::io::{
-        read_agg_pk_and_pinning, read_metadata, read_pk_and_pinning, write_agg_keygen_output,
-        write_keygen_output, write_metadata, write_output,
+    utils::{
+        io::{
+            read_agg_pk_and_pinning, read_metadata, read_pk_and_pinning, write_agg_keygen_output,
+            write_keygen_output, write_metadata, write_output,
+        },
+        read_srs_from_dir_or_install,
     },
     Fr,
 };
@@ -81,7 +83,9 @@ pub fn run_cli_on_scaffold<
         .unwrap_or_else(|| env::var("PROVIDER_URI").expect("The `provider` argument is required for the selected command. Either pass it as an argument or set the `PROVIDER_URI` environment variable."));
     let provider = Provider::<Http>::try_from(provider_uri).unwrap();
     let data_path = cli.data_path.unwrap_or_else(|| PathBuf::from("data"));
-    let srs_path = cli.srs.unwrap_or_else(|| PathBuf::from("params"));
+    let srs_path = cli
+        .srs
+        .unwrap_or_else(|| dirs::home_dir().unwrap().join(".axiom/srs/challenge_0085"));
     let circuit_name = cli.name.unwrap_or_else(|| "circuit".to_string());
 
     let mut max_user_outputs = USER_MAX_OUTPUTS;
@@ -99,7 +103,7 @@ pub fn run_cli_on_scaffold<
         max_subqueries = raw_params.max_subqueries.unwrap_or(USER_MAX_SUBQUERIES);
         core_params = raw_params
             .core_params
-            .unwrap_or_else(|| A::CoreParams::default());
+            .unwrap_or_else(A::CoreParams::default);
 
         let base_params = BaseCircuitParams {
             k: raw_params.k,
@@ -158,7 +162,7 @@ pub fn run_cli_on_scaffold<
             mock(&mut runner);
         }
         SnarkCmd::Keygen => {
-            let srs = read_srs_from_dir(&srs_path, runner.k() as u32).expect("Unable to read SRS");
+            let srs = read_srs_from_dir_or_install(&srs_path, runner.k() as u32);
             let (vk, pk, pinning) = keygen(&mut runner, &srs);
             write_keygen_output(&vk, &pk, &pinning, data_path.clone());
             let metadata = if should_aggregate {
@@ -172,12 +176,12 @@ pub fn run_cli_on_scaffold<
                     panic!("The `agg_params` field in `config` is required for keygen with aggregation.");
                 }
 
-                let mut prover = AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone())
+                let prover = AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone())
                     .use_inputs(input);
-                let output = run(&mut prover, &pk, &srs);
+                let output = run(prover, &pk, &srs);
                 let agg_kzg_params =
-                    read_srs_from_dir(&srs_path, agg_circuit_params.unwrap().degree)
-                        .expect("Unable to read SRS");
+                    read_srs_from_dir_or_install(&srs_path, agg_circuit_params.unwrap().degree);
+
                 let agg_params = agg_circuit_params.unwrap();
                 let agg_keygen_output = agg_circuit_keygen(
                     agg_params,
@@ -186,7 +190,7 @@ pub fn run_cli_on_scaffold<
                     &agg_kzg_params,
                     cli.should_auto_config_aggregation_circuit,
                 );
-                let agg_params = agg_keygen_output.2.params.clone();
+                let agg_params = agg_keygen_output.2.params;
                 let agg_vk = agg_keygen_output.0.clone();
                 write_agg_keygen_output(agg_keygen_output, data_path.clone());
                 get_agg_axiom_client_circuit_metadata(
@@ -209,16 +213,15 @@ pub fn run_cli_on_scaffold<
                 read_metadata(data_path.join(PathBuf::from(format!("{}.json", circuit_name))));
             let circuit_id = metadata.circuit_id.clone();
             let (pk, pinning) = read_pk_and_pinning(data_path.clone(), circuit_id, &runner);
-            let mut prover =
+            let prover =
                 AxiomCircuit::<Fr, Http, A>::prover(provider, pinning.clone()).use_inputs(input);
-            let srs = read_srs_from_dir(&srs_path, prover.k() as u32).expect("Unable to read SRS");
-            let inner_output = run(&mut prover, &pk, &srs);
+            let srs = read_srs_from_dir_or_install(&srs_path, prover.k() as u32);
+            let inner_output = run(prover, &pk, &srs);
             let output = if should_aggregate {
                 let agg_circuit_id = metadata.agg_circuit_id.expect("No aggregation circuit ID");
                 let (agg_pk, agg_pinning) =
                     read_agg_pk_and_pinning::<A::CoreParams>(data_path.clone(), agg_circuit_id);
-                let agg_srs = read_srs_from_dir(&srs_path, agg_pinning.params.degree)
-                    .expect("Unable to read SRS");
+                let agg_srs = read_srs_from_dir_or_install(&srs_path, agg_pinning.params.degree);
                 agg_circuit_run(agg_pinning, inner_output, agg_pk, &agg_srs)
             } else {
                 inner_output

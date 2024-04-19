@@ -173,8 +173,8 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
     let kzg_params = gen_srs(runner.k() as u32);
     let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
-    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning.clone());
-    let output = run::<_, S>(&mut runner, &pk, &kzg_params);
+    let runner = AxiomCircuit::<_, _, S>::prover(client, pinning.clone());
+    let output = run::<_, S>(runner, &pk, &kzg_params);
     let agg_kzg_params = gen_srs(agg_circuit_params.degree);
     let (agg_vk, agg_pk, agg_pinning) = agg_circuit_keygen(
         agg_circuit_params,
