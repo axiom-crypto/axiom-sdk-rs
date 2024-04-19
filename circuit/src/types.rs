@@ -46,7 +46,8 @@ impl Default for AxiomCircuitParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AxiomCircuitPinning {
+pub struct AxiomCircuitPinning<T> {
+    pub core_params: T,
     pub params: AxiomCircuitParams,
     pub break_points: RlcThreadBreakPoints,
     pub max_user_outputs: usize,
@@ -54,8 +55,8 @@ pub struct AxiomCircuitPinning {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregationCircuitPinning {
-    pub child_pinning: AxiomCircuitPinning,
+pub struct AggregationCircuitPinning<T> {
+    pub child_pinning: AxiomCircuitPinning<T>,
     pub break_points: MultiPhaseThreadBreakPoints,
     pub params: AggregationCircuitParams,
 }

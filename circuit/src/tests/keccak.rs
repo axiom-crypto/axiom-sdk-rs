@@ -57,6 +57,7 @@ macro_rules! keccak_test_struct {
                 subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
                 _callback: &mut Vec<HiLo<AssignedValue<Fr>>>,
                 _inputs: Self::InputWitness,
+                _core_params: Self::CoreParams,
             ) {
                 $subquery_call(builder, subquery_caller.clone());
                 let a = witness!(builder, Fr::from(1));

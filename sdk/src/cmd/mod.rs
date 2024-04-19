@@ -86,16 +86,20 @@ pub fn run_cli_on_scaffold<
 
     let mut max_user_outputs = USER_MAX_OUTPUTS;
     let mut max_subqueries = USER_MAX_SUBQUERIES;
+    let mut core_params = A::CoreParams::default();
 
     let mut agg_circuit_params: Option<AggregationCircuitParams> = None;
 
     let params = if let Some(config) = cli.config.clone() {
         let f = File::open(config).unwrap();
-        let raw_params: RawCircuitParams = serde_json::from_reader(f).unwrap();
+        let raw_params: RawCircuitParams<A::CoreParams> = serde_json::from_reader(f).unwrap();
         agg_circuit_params = raw_params.agg_params;
 
         max_user_outputs = raw_params.max_outputs.unwrap_or(USER_MAX_OUTPUTS);
         max_subqueries = raw_params.max_subqueries.unwrap_or(USER_MAX_SUBQUERIES);
+        core_params = raw_params
+            .core_params
+            .unwrap_or_else(|| A::CoreParams::default());
 
         let base_params = BaseCircuitParams {
             k: raw_params.k,
@@ -144,6 +148,7 @@ pub fn run_cli_on_scaffold<
     let should_aggregate = cli.should_aggregate;
 
     let mut runner = AxiomCircuit::<Fr, Http, A>::new(provider.clone(), params)
+        .use_core_params(core_params)
         .use_max_user_outputs(max_user_outputs)
         .use_max_user_subqueries(max_subqueries)
         .use_inputs(input.clone());
@@ -211,7 +216,7 @@ pub fn run_cli_on_scaffold<
             let output = if should_aggregate {
                 let agg_circuit_id = metadata.agg_circuit_id.expect("No aggregation circuit ID");
                 let (agg_pk, agg_pinning) =
-                    read_agg_pk_and_pinning(data_path.clone(), agg_circuit_id);
+                    read_agg_pk_and_pinning::<A::CoreParams>(data_path.clone(), agg_circuit_id);
                 let agg_srs = read_srs_from_dir(&srs_path, agg_pinning.params.degree)
                     .expect("Unable to read SRS");
                 agg_circuit_run(agg_pinning, inner_output, agg_pk, &agg_srs)

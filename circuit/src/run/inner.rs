@@ -43,7 +43,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
-    AxiomCircuitPinning,
+    AxiomCircuitPinning<S::CoreParams>,
 ) {
     let raw_circuit_params = circuit.params();
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());

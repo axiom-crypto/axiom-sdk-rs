@@ -29,16 +29,16 @@ pub fn agg_circuit_mock(agg_circuit_params: AggregationCircuitParams, snark: Sna
         .assert_satisfied();
 }
 
-pub fn agg_circuit_keygen(
+pub fn agg_circuit_keygen<T>(
     agg_circuit_params: AggregationCircuitParams,
     snark: Snark,
-    child_pinning: AxiomCircuitPinning,
+    child_pinning: AxiomCircuitPinning<T>,
     params: &ParamsKZG<Bn256>,
     should_calculate_params: bool,
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
-    AggregationCircuitPinning,
+    AggregationCircuitPinning<T>,
 ) {
     let mut circuit =
         create_aggregation_circuit(agg_circuit_params, snark, CircuitBuilderStage::Keygen);
@@ -57,8 +57,8 @@ pub fn agg_circuit_keygen(
     (vk, pk, pinning)
 }
 
-pub fn agg_circuit_prove(
-    agg_circuit_pinning: AggregationCircuitPinning,
+pub fn agg_circuit_prove<T>(
+    agg_circuit_pinning: AggregationCircuitPinning<T>,
     snark: Snark,
     pk: ProvingKey<G1Affine>,
     params: &ParamsKZG<Bn256>,
@@ -72,8 +72,8 @@ pub fn agg_circuit_prove(
     gen_snark_shplonk(params, &pk, circuit, None::<&str>)
 }
 
-pub fn agg_circuit_run(
-    agg_circuit_pinning: AggregationCircuitPinning,
+pub fn agg_circuit_run<T>(
+    agg_circuit_pinning: AggregationCircuitPinning<T>,
     inner_output: AxiomV2CircuitOutput,
     pk: ProvingKey<G1Affine>,
     params: &ParamsKZG<Bn256>,
