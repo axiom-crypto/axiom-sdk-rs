@@ -270,7 +270,6 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         }
         let is_inputs = self.inputs.is_none();
         let flattened_inputs = self.inputs.clone().unwrap_or_default().flatten_vec();
-        // let params = self.inputs.clone().unwrap_or_default().params();
         let assigned_input_vec = self
             .builder
             .borrow_mut()

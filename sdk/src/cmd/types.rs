@@ -18,7 +18,7 @@ pub enum SnarkCmd {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 /// Struct for specifying custom circuit parameters via JSON
-pub struct RawCircuitParams<T> {
+pub struct RawCircuitParams<CoreParams> {
     pub k: usize,
     pub num_advice_per_phase: Vec<usize>,
     pub num_fixed: usize,
@@ -29,7 +29,7 @@ pub struct RawCircuitParams<T> {
     pub max_outputs: Option<usize>,
     pub max_subqueries: Option<usize>,
     pub agg_params: Option<AggregationCircuitParams>,
-    pub core_params: Option<T>,
+    pub core_params: Option<CoreParams>,
 }
 
 #[derive(Parser, Debug)]

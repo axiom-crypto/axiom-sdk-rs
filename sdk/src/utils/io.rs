@@ -24,10 +24,10 @@ use ethers::providers::Http;
 use log::info;
 use serde::{de::DeserializeOwned, Serialize};
 
-pub fn write_keygen_output<T: Serialize>(
+pub fn write_keygen_output<CoreParams: Serialize>(
     vk: &VerifyingKey<G1Affine>,
     pk: &ProvingKey<G1Affine>,
-    pinning: &AxiomCircuitPinning<T>,
+    pinning: &AxiomCircuitPinning<CoreParams>,
     data_path: PathBuf,
 ) -> String {
     let circuit_id = get_circuit_id(vk);
@@ -55,11 +55,11 @@ where
     (pk, pinning)
 }
 
-pub fn write_agg_keygen_output<T: Serialize>(
+pub fn write_agg_keygen_output<CoreParams: Serialize>(
     keygen_output: (
         VerifyingKey<G1Affine>,
         ProvingKey<G1Affine>,
-        AggregationCircuitPinning<T>,
+        AggregationCircuitPinning<CoreParams>,
     ),
     data_path: PathBuf,
 ) -> String {
@@ -73,10 +73,10 @@ pub fn write_agg_keygen_output<T: Serialize>(
     circuit_id
 }
 
-pub fn read_agg_pk_and_pinning<T: DeserializeOwned>(
+pub fn read_agg_pk_and_pinning<CoreParams: DeserializeOwned>(
     data_path: PathBuf,
     circuit_id: String,
-) -> (ProvingKey<G1Affine>, AggregationCircuitPinning<T>) {
+) -> (ProvingKey<G1Affine>, AggregationCircuitPinning<CoreParams>) {
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
     let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     let pinning = read_agg_pinning(pinning_path);
@@ -146,18 +146,8 @@ pub fn read_agg_pk(pk_path: PathBuf, params: AggregationCircuitParams) -> Provin
         .expect("reading pkey should not fail")
 }
 
-pub fn write_pinning<T: Serialize>(pinning: &AxiomCircuitPinning<T>, pinning_path: PathBuf) {
-    if pinning_path.exists() {
-        fs::remove_file(&pinning_path).unwrap();
-    }
-    let f = File::create(&pinning_path)
-        .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
-    serde_json::to_writer_pretty(&f, &pinning).expect("writing circuit pinning should not fail");
-    info!("Wrote circuit pinning to {:?}", pinning_path);
-}
-
-pub fn write_agg_pinning<T: Serialize>(
-    pinning: &AggregationCircuitPinning<T>,
+pub fn write_pinning<CoreParams: Serialize>(
+    pinning: &AxiomCircuitPinning<CoreParams>,
     pinning_path: PathBuf,
 ) {
     if pinning_path.exists() {
@@ -169,15 +159,30 @@ pub fn write_agg_pinning<T: Serialize>(
     info!("Wrote circuit pinning to {:?}", pinning_path);
 }
 
-pub fn read_pinning<T: DeserializeOwned>(pinning_path: PathBuf) -> AxiomCircuitPinning<T> {
+pub fn write_agg_pinning<CoreParams: Serialize>(
+    pinning: &AggregationCircuitPinning<CoreParams>,
+    pinning_path: PathBuf,
+) {
+    if pinning_path.exists() {
+        fs::remove_file(&pinning_path).unwrap();
+    }
+    let f = File::create(&pinning_path)
+        .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
+    serde_json::to_writer_pretty(&f, &pinning).expect("writing circuit pinning should not fail");
+    info!("Wrote circuit pinning to {:?}", pinning_path);
+}
+
+pub fn read_pinning<CoreParams: DeserializeOwned>(
+    pinning_path: PathBuf,
+) -> AxiomCircuitPinning<CoreParams> {
     info!("Reading circuit pinning from {:?}", &pinning_path);
     let f = File::open(pinning_path).expect("pinning file should exist");
     serde_json::from_reader(f).expect("reading circuit pinning should not fail")
 }
 
-pub fn read_agg_pinning<T: DeserializeOwned>(
+pub fn read_agg_pinning<CoreParams: DeserializeOwned>(
     pinning_path: PathBuf,
-) -> AggregationCircuitPinning<T> {
+) -> AggregationCircuitPinning<CoreParams> {
     info!("Reading agg circuit pinning from {:?}", &pinning_path);
     let f = File::open(pinning_path).expect("pinning file should exist");
     serde_json::from_reader(f).expect("reading circuit pinning should not fail")

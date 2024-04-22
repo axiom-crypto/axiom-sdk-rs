@@ -46,8 +46,8 @@ impl Default for AxiomCircuitParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AxiomCircuitPinning<T> {
-    pub core_params: T,
+pub struct AxiomCircuitPinning<CoreParams> {
+    pub core_params: CoreParams,
     pub params: AxiomCircuitParams,
     pub break_points: RlcThreadBreakPoints,
     pub max_user_outputs: usize,
@@ -55,8 +55,8 @@ pub struct AxiomCircuitPinning<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregationCircuitPinning<T> {
-    pub child_pinning: AxiomCircuitPinning<T>,
+pub struct AggregationCircuitPinning<CoreParams> {
+    pub child_pinning: AxiomCircuitPinning<CoreParams>,
     pub break_points: MultiPhaseThreadBreakPoints,
     pub params: AggregationCircuitParams,
 }
@@ -64,8 +64,8 @@ pub struct AggregationCircuitPinning<T> {
 #[derive(Debug, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AxiomV2DataAndResults {
-    pub(crate) data_query: Vec<Subquery>,
-    pub(crate) compute_results: Vec<H256>,
+    pub data_query: Vec<Subquery>,
+    pub compute_results: Vec<H256>,
 }
 
 #[derive(Debug, Serialize, Clone)]
