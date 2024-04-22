@@ -17,23 +17,23 @@ use ethers::providers::{Http, Provider};
 use serde::Serialize;
 
 #[derive(Clone, Debug)]
-pub struct AxiomComputeCircuitCtx {
+pub struct AxiomComputeCircuitCtx<CoreParams> {
     pub pk: ProvingKey<G1Affine>,
-    pub pinning: AxiomCircuitPinning,
+    pub pinning: AxiomCircuitPinning<CoreParams>,
     pub params: ParamsKZG<Bn256>,
 }
 
 #[derive(Clone, Debug)]
-pub struct AggregationCircuitCtx {
+pub struct AggregationCircuitCtx<CoreParams> {
     pub pk: ProvingKey<G1Affine>,
-    pub pinning: AggregationCircuitPinning,
+    pub pinning: AggregationCircuitPinning<CoreParams>,
     pub params: ParamsKZG<Bn256>,
 }
 
 #[derive(Clone, Debug)]
-pub struct AxiomComputeCtx {
-    pub child: AxiomComputeCircuitCtx,
-    pub agg: Option<AggregationCircuitCtx>,
+pub struct AxiomComputeCtx<CoreParams> {
+    pub child: AxiomComputeCircuitCtx<CoreParams>,
+    pub agg: Option<AggregationCircuitCtx<CoreParams>>,
     pub provider: Provider<Http>,
 }
 

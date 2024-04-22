@@ -83,13 +83,9 @@ pub struct AxiomCircuitRunnerOptions {
     /// The path to a custom circuit configuration
     pub config: Option<PathBuf>,
 
-    #[arg(
-        long = "srs",
-        help = "For specifying custom KZG params directory",
-        default_value = "params"
-    )]
+    #[arg(long = "srs", help = "For specifying custom KZG params directory")]
     /// The path to the KZG params folder
-    pub srs: PathBuf,
+    pub srs: Option<PathBuf>,
 
     #[arg(
         long = "aggregate",

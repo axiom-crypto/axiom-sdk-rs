@@ -40,7 +40,7 @@ pub async fn add_job(ctx: &State<AxiomComputeManager>, job: String) -> u64 {
 
 pub fn prover_loop<A: AxiomCircuitScaffold<Http, Fr>, I: Into<A::InputValue> + DeserializeOwned>(
     manager: AxiomComputeManager,
-    ctx: AxiomComputeCtx,
+    ctx: AxiomComputeCtx<A::CoreParams>,
     mut shutdown: tokio::sync::mpsc::Receiver<()>,
 ) {
     loop {
@@ -56,7 +56,7 @@ pub fn prover_loop<A: AxiomCircuitScaffold<Http, Fr>, I: Into<A::InputValue> + D
             };
             let raw_input = inputs.get(&job).unwrap();
             let input: I = serde_json::from_str(raw_input).unwrap();
-            let mut runner = AxiomCircuit::<Fr, Http, A>::prover(
+            let runner = AxiomCircuit::<Fr, Http, A>::prover(
                 ctx.provider.clone(),
                 ctx.child.pinning.clone(),
             )
@@ -72,7 +72,7 @@ pub fn prover_loop<A: AxiomCircuitScaffold<Http, Fr>, I: Into<A::InputValue> + D
                 .lock()
                 .unwrap()
                 .insert(job, scaffold_output);
-            let inner_output = run(&mut runner, &ctx.child.pk, &ctx.child.params);
+            let inner_output = run(runner, &ctx.child.pk, &ctx.child.params);
             manager
                 .job_status
                 .lock()
@@ -106,7 +106,7 @@ pub fn prover_loop<A: AxiomCircuitScaffold<Http, Fr>, I: Into<A::InputValue> + D
 
 pub fn initialize<A: AxiomCircuitScaffold<Http, Fr>>(
     options: AxiomComputeServerCmd,
-) -> AxiomComputeCtx {
+) -> AxiomComputeCtx<A::CoreParams> {
     let data_path = PathBuf::from(options.data_path);
     let srs_path = PathBuf::from(options.srs_path);
     let metadata =
