@@ -48,6 +48,8 @@ impl AxiomComputeFn for AccountAgeInput {
     }
 }
 
+// axiom_compute_prover_server!(AccountAgeInput);
+
 fn main() {
     run_cli::<AccountAgeInput>();
 }

@@ -57,6 +57,7 @@ macro_rules! keccak_test_struct {
                 subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
                 _callback: &mut Vec<HiLo<AssignedValue<Fr>>>,
                 _inputs: Self::InputWitness,
+                _core_params: Self::CoreParams,
             ) {
                 $subquery_call(builder, subquery_caller.clone());
                 let a = witness!(builder, Fr::from(1));
@@ -172,14 +173,15 @@ pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let mut runner = AxiomCircuit::<_, _, S>::new(client.clone(), params);
     let kzg_params = gen_srs(runner.k() as u32);
     let (_, pk, pinning) = keygen::<_, S>(&mut runner, &kzg_params);
-    let mut runner = AxiomCircuit::<_, _, S>::prover(client, pinning.clone());
-    let output = run::<_, S>(&mut runner, &pk, &kzg_params);
+    let runner = AxiomCircuit::<_, _, S>::prover(client, pinning.clone());
+    let output = run::<_, S>(runner, &pk, &kzg_params);
     let agg_kzg_params = gen_srs(agg_circuit_params.degree);
     let (agg_vk, agg_pk, agg_pinning) = agg_circuit_keygen(
         agg_circuit_params,
         output.snark.clone(),
         pinning,
         &agg_kzg_params,
+        false,
     );
     let final_output = agg_circuit_run(agg_pinning, output.clone(), agg_pk, &agg_kzg_params);
     let circuit = create_aggregation_circuit(

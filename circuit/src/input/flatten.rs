@@ -4,10 +4,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::{impl_input_flatten_for_fixed_array, impl_input_flatten_for_tuple};
 
+/// Provides functionality to flatten and unflatten input data for circuits.
+///
+/// This trait is designed to work with types that can be copied, ensuring that the data can be
+/// easily duplicated when necessary. It includes methods for flattening data into a vector and
+/// unflattening data from a vector, with optional parameters for the unflattening process.
+///
+/// Implementors of this trait must specify the number of field elements (`NUM_FE`) that the
+/// flattened data will contain. This is used to ensure that the input data has the correct length
+/// when unflattening.
 pub trait InputFlatten<T: Copy>: Sized {
+    /// Type `Params` is used to provide additional parameters that may be required for the unflattening process.
+    /// It defaults to `()` when no additional parameters are needed.
+    type Params: Default = ();
     const NUM_FE: usize;
     fn flatten_vec(&self) -> Vec<T>;
     fn unflatten(vec: Vec<T>) -> Result<Self>;
+    fn unflatten_with_params(vec: Vec<T>, _params: Self::Params) -> Result<Self> {
+        Self::unflatten(vec)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

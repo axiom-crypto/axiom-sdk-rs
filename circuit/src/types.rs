@@ -1,19 +1,24 @@
+use std::collections::HashMap;
+
 use axiom_codec::types::native::AxiomV2ComputeQuery;
-use axiom_query::axiom_eth::{
-    halo2_base::gates::{
-        circuit::{BaseCircuitParams, BaseConfig},
-        flex_gate::MultiPhaseThreadBreakPoints,
+use axiom_query::{
+    axiom_eth::{
+        halo2_base::gates::{
+            circuit::{BaseCircuitParams, BaseConfig},
+            flex_gate::MultiPhaseThreadBreakPoints,
+        },
+        rlc::{
+            circuit::{RlcCircuitParams, RlcConfig},
+            virtual_region::RlcThreadBreakPoints,
+        },
+        snark_verifier_sdk::Snark,
+        utils::{
+            keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
+            snark_verifier::AggregationCircuitParams,
+        },
+        Field,
     },
-    rlc::{
-        circuit::{RlcCircuitParams, RlcConfig},
-        virtual_region::RlcThreadBreakPoints,
-    },
-    snark_verifier_sdk::Snark,
-    utils::{
-        keccak::decorator::{RlcKeccakCircuitParams, RlcKeccakConfig},
-        snark_verifier::AggregationCircuitParams,
-    },
-    Field,
+    utils::client_circuit::metadata::AxiomV2CircuitMetadata,
 };
 use ethers::types::H256;
 use serde::{Deserialize, Serialize};
@@ -41,7 +46,8 @@ impl Default for AxiomCircuitParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AxiomCircuitPinning {
+pub struct AxiomCircuitPinning<CoreParams> {
+    pub core_params: CoreParams,
     pub params: AxiomCircuitParams,
     pub break_points: RlcThreadBreakPoints,
     pub max_user_outputs: usize,
@@ -49,8 +55,8 @@ pub struct AxiomCircuitPinning {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AggregationCircuitPinning {
-    pub child_pinning: AxiomCircuitPinning,
+pub struct AggregationCircuitPinning<CoreParams> {
+    pub child_pinning: AxiomCircuitPinning<CoreParams>,
     pub break_points: MultiPhaseThreadBreakPoints,
     pub params: AggregationCircuitParams,
 }
@@ -58,8 +64,8 @@ pub struct AggregationCircuitPinning {
 #[derive(Debug, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AxiomV2DataAndResults {
-    pub(crate) data_query: Vec<Subquery>,
-    pub(crate) compute_results: Vec<H256>,
+    pub data_query: Vec<Subquery>,
+    pub compute_results: Vec<H256>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -68,6 +74,7 @@ pub struct AxiomV2CircuitOutput {
     pub compute_query: AxiomV2ComputeQuery,
     #[serde(flatten)]
     pub data: AxiomV2DataAndResults,
+    pub query_schema: H256,
     #[serde(skip_serializing)]
     pub snark: Snark,
 }
@@ -89,4 +96,16 @@ impl From<AxiomCircuitParams> for RlcKeccakCircuitParams {
             AxiomCircuitParams::Keccak(params) => params,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AxiomClientCircuitMetadata {
+    pub metadata: AxiomV2CircuitMetadata,
+    pub circuit_id: String,
+    pub data_query_size: HashMap<usize, usize>,
+    pub agg_circuit_id: Option<String>,
+    pub max_user_outputs: usize,
+    pub max_user_subqueries: usize,
+    pub preprocessed_len: usize,
+    pub query_schema: H256,
 }

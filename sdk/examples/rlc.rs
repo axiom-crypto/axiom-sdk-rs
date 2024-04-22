@@ -28,6 +28,7 @@ impl AxiomComputeFn for RlcInput {
     fn compute_phase0(
         _: &mut AxiomAPI,
         assigned_inputs: Self::Input<AssignedValue<Fr>>,
+        _: Self::CoreParams,
     ) -> (Vec<AxiomResult>, Self::FirstPhasePayload) {
         (
             vec![],

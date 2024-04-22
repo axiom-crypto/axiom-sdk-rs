@@ -17,7 +17,7 @@ use crate::{
     types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
     utils::{
         build_axiom_v2_compute_query, check_compute_proof_format, check_compute_query_format,
-        verify_snark, DK,
+        get_query_schema_from_compute_query, verify_snark, DK,
     },
 };
 
@@ -43,7 +43,7 @@ pub fn keygen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 ) -> (
     VerifyingKey<G1Affine>,
     ProvingKey<G1Affine>,
-    AxiomCircuitPinning,
+    AxiomCircuitPinning<S::CoreParams>,
 ) {
     let raw_circuit_params = circuit.params();
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
@@ -72,7 +72,7 @@ pub fn prove<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
 }
 
 pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
-    circuit: &mut AxiomCircuit<Fr, P, S>,
+    circuit: AxiomCircuit<Fr, P, S>,
     pk: &ProvingKey<G1Affine>,
     params: &ParamsKZG<Bn256>,
 ) -> AxiomV2CircuitOutput {
@@ -80,12 +80,8 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     let circuit_params = RlcKeccakCircuitParams::from(raw_circuit_params.clone());
     let k = circuit_params.k();
     let output = circuit.scaffold_output();
-    if circuit_params.keccak_rows_per_round > 0 {
-        circuit.calculate_params();
-        info!("Calculated params: {:?}", circuit.params());
-    }
     let max_user_outputs = circuit.max_user_outputs;
-    let snark = gen_snark_shplonk(params, pk, circuit.clone(), None::<&str>);
+    let snark = gen_snark_shplonk(params, pk, circuit, None::<&str>);
     let compute_query = match raw_circuit_params {
         AxiomCircuitParams::Base(_) => build_axiom_v2_compute_query(
             snark.clone(),
@@ -113,10 +109,13 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
         }
     };
 
+    let query_schema = get_query_schema_from_compute_query(compute_query.clone()).unwrap();
+
     let circuit_output = AxiomV2CircuitOutput {
         compute_query,
         data: output,
         snark,
+        query_schema,
     };
 
     let vk = pk.get_vk();
@@ -127,7 +126,7 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
             circuit_output.clone(),
             raw_circuit_params,
             vk.clone(),
-            circuit.max_user_outputs,
+            max_user_outputs,
         );
         verify_snark(&DK, &circuit_output.snark)
             .expect("Client snark failed to verify. Make sure you are using the right KZG params.");

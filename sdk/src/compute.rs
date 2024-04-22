@@ -32,7 +32,9 @@ pub trait AxiomComputeInput: Clone + Default + Debug {
     /// The type of the native input (ie. Rust types) to the compute function
     type LogicInput: Clone + Debug + Serialize + DeserializeOwned + Into<Self::Input<Fr>>;
     /// The type of the circuit input to the compute function
-    type Input<T: Copy>: Clone + InputFlatten<T>;
+    type Input<T: Copy>: Clone + InputFlatten<T, Params = Self::CoreParams>;
+    /// Optional type to specify circuit-specific configuration params
+    type CoreParams: Clone + Debug + Default + Serialize + DeserializeOwned = ();
 }
 
 /// A trait for specifying an Axiom Compute function
@@ -46,10 +48,12 @@ pub trait AxiomComputeFn: AxiomComputeInput {
         assigned_inputs: Self::Input<AssignedValue<Fr>>,
     ) -> Vec<AxiomResult>;
 
+    #[allow(unused_variables)]
     /// An optional function that overrides `compute` to specify phase0 circuit logic for circuits that require a challenge
     fn compute_phase0(
         api: &mut AxiomAPI,
         assigned_inputs: Self::Input<AssignedValue<Fr>>,
+        core_params: Self::CoreParams,
     ) -> (Vec<AxiomResult>, Self::FirstPhasePayload) {
         (Self::compute(api, assigned_inputs), Default::default())
     }
@@ -71,7 +75,7 @@ pub trait AxiomComputeFn: AxiomComputeInput {
 pub struct AxiomCompute<A: AxiomComputeFn> {
     provider: Option<Provider<Http>>,
     params: Option<AxiomCircuitParams>,
-    pinning: Option<AxiomCircuitPinning>,
+    pinning: Option<AxiomCircuitPinning<A::CoreParams>>,
     input: Option<A::LogicInput>,
     kzg_params: Option<ParamsKZG<Bn256>>,
     max_user_outputs: usize,
@@ -99,6 +103,7 @@ where
 {
     type InputValue = A::Input<Fr>;
     type InputWitness = A::Input<AssignedValue<Fr>>;
+    type CoreParams = A::CoreParams;
     type FirstPhasePayload = A::FirstPhasePayload;
 
     fn virtual_assign_phase0(
@@ -107,9 +112,10 @@ where
         subquery_caller: Arc<Mutex<SubqueryCaller<Http, Fr>>>,
         callback: &mut Vec<HiLo<AssignedValue<Fr>>>,
         assigned_inputs: Self::InputWitness,
+        core_params: Self::CoreParams,
     ) -> <A as AxiomComputeFn>::FirstPhasePayload {
         let mut api = AxiomAPI::new(builder, range, subquery_caller);
-        let (result, payload) = A::compute_phase0(&mut api, assigned_inputs);
+        let (result, payload) = A::compute_phase0(&mut api, assigned_inputs, core_params);
         let hilo_output = result
             .into_iter()
             .map(|result| match result {
@@ -156,7 +162,7 @@ where
     }
 
     /// Set the pinning for the AxiomCompute instance
-    pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning) {
+    pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning<A::CoreParams>) {
         self.pinning = Some(pinning);
     }
 
@@ -194,7 +200,7 @@ where
     }
 
     /// Use the given pinning for the AxiomCompute instance
-    pub fn use_pinning(mut self, pinning: AxiomCircuitPinning) -> Self {
+    pub fn use_pinning(mut self, pinning: AxiomCircuitPinning<A::CoreParams>) -> Self {
         self.set_pinning(pinning);
         self
     }
@@ -249,7 +255,7 @@ where
     ) -> (
         VerifyingKey<G1Affine>,
         ProvingKey<G1Affine>,
-        AxiomCircuitPinning,
+        AxiomCircuitPinning<A::CoreParams>,
     ) {
         self.check_provider_and_params_set();
         let provider = self.provider.clone().unwrap();
@@ -266,13 +272,12 @@ where
         self.check_all_set();
         let provider = self.provider.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
-        let mut runner =
-            AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
-                .use_inputs(converted_input)
-                .use_max_user_outputs(self.max_user_outputs)
-                .use_max_user_subqueries(self.max_user_subqueries);
+        let runner = AxiomCircuit::<_, _, Self>::prover(provider, self.pinning.clone().unwrap())
+            .use_inputs(converted_input)
+            .use_max_user_outputs(self.max_user_outputs)
+            .use_max_user_subqueries(self.max_user_subqueries);
         let kzg_params = self.kzg_params.clone().expect("KZG params not set");
-        run::<Http, Self>(&mut runner, &pk, &kzg_params)
+        run::<Http, Self>(runner, &pk, &kzg_params)
     }
 
     /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait

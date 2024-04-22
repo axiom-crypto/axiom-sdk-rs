@@ -49,6 +49,7 @@ use axiom_query::axiom_eth::{
 use ethers::providers::{JsonRpcClient, Provider};
 use itertools::Itertools;
 use log::{info, warn};
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     input::flatten::InputFlatten,
@@ -57,8 +58,9 @@ use crate::{
 };
 
 pub trait AxiomCircuitScaffold<P: JsonRpcClient, F: Field>: Default + Clone + Debug {
-    type InputValue: Clone + Debug + Default + InputFlatten<F>;
-    type InputWitness: Clone + Debug + InputFlatten<AssignedValue<F>>;
+    type InputValue: Clone + Debug + Default + InputFlatten<F, Params = Self::CoreParams>;
+    type InputWitness: Clone + Debug + InputFlatten<AssignedValue<F>, Params = Self::CoreParams>;
+    type CoreParams: Clone + Default + Serialize + DeserializeOwned = ();
     type FirstPhasePayload: Clone = ();
 
     fn virtual_assign_phase0(
@@ -67,6 +69,7 @@ pub trait AxiomCircuitScaffold<P: JsonRpcClient, F: Field>: Default + Clone + De
         subquery_caller: Arc<Mutex<SubqueryCaller<P, F>>>,
         callback: &mut Vec<HiLo<AssignedValue<F>>>,
         assigned_inputs: Self::InputWitness,
+        core_params: Self::CoreParams,
     ) -> Self::FirstPhasePayload;
 
     /// Most people should not use this
@@ -84,6 +87,7 @@ pub struct AxiomCircuit<F: Field, P: JsonRpcClient, A: AxiomCircuitScaffold<P, F
     pub builder: RefCell<RlcCircuitBuilder<F>>,
     pub inputs: Option<A::InputValue>,
     pub provider: Provider<P>,
+    pub core_params: A::CoreParams,
     range: RangeChip<F>,
     payload: RefCell<Option<A::FirstPhasePayload>>,
     output: RefCell<AxiomV2DataAndResults>,
@@ -95,12 +99,18 @@ pub struct AxiomCircuit<F: Field, P: JsonRpcClient, A: AxiomCircuitScaffold<P, F
 
 impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCircuit<F, P, A> {
     pub fn new(provider: Provider<P>, circuit_params: AxiomCircuitParams) -> Self {
-        Self::from_stage(provider, circuit_params, CircuitBuilderStage::Mock)
+        Self::from_stage(
+            provider,
+            A::CoreParams::default(),
+            circuit_params,
+            CircuitBuilderStage::Mock,
+        )
     }
 
-    pub fn prover(provider: Provider<P>, pinning: AxiomCircuitPinning) -> Self {
+    pub fn prover(provider: Provider<P>, pinning: AxiomCircuitPinning<A::CoreParams>) -> Self {
         let mut circuit = Self::from_stage(
             provider,
+            pinning.clone().core_params,
             pinning.clone().params,
             CircuitBuilderStage::Prover,
         );
@@ -110,6 +120,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
 
     pub fn from_stage(
         provider: Provider<P>,
+        core_params: A::CoreParams,
         circuit_params: AxiomCircuitParams,
         stage: CircuitBuilderStage,
     ) -> Self {
@@ -127,6 +138,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         );
         Self {
             builder: RefCell::new(builder),
+            core_params,
             range,
             inputs: None,
             provider,
@@ -187,14 +199,23 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         self
     }
 
-    pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning) {
+    pub fn set_core_params(&mut self, params: A::CoreParams) {
+        self.core_params = params;
+    }
+
+    pub fn use_core_params(mut self, params: A::CoreParams) -> Self {
+        self.set_core_params(params);
+        self
+    }
+
+    pub fn set_pinning(&mut self, pinning: AxiomCircuitPinning<A::CoreParams>) {
         self.set_params(pinning.params);
         self.set_break_points(pinning.break_points);
         self.set_max_user_outputs(pinning.max_user_outputs);
         self.set_max_user_subqueries(pinning.max_user_subqueries);
     }
 
-    pub fn use_pinning(mut self, pinning: AxiomCircuitPinning) -> Self {
+    pub fn use_pinning(mut self, pinning: AxiomCircuitPinning<A::CoreParams>) -> Self {
         self.set_pinning(pinning);
         self
     }
@@ -221,8 +242,9 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
         }
     }
 
-    pub fn pinning(&self) -> AxiomCircuitPinning {
+    pub fn pinning(&self) -> AxiomCircuitPinning<A::CoreParams> {
         AxiomCircuitPinning {
+            core_params: self.core_params.clone(),
             params: self.params(),
             break_points: self.break_points(),
             max_user_outputs: self.max_user_outputs,
@@ -254,7 +276,9 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             .base
             .main(0)
             .assign_witnesses(flattened_inputs);
-        let assigned_inputs = A::InputWitness::unflatten(assigned_input_vec).unwrap();
+        let assigned_inputs =
+            A::InputWitness::unflatten_with_params(assigned_input_vec, self.core_params.clone())
+                .unwrap();
 
         let subquery_caller = Arc::new(Mutex::new(SubqueryCaller::new(
             self.provider.clone(),
@@ -267,6 +291,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             subquery_caller.clone(),
             &mut callback,
             assigned_inputs,
+            self.core_params.clone(),
         );
         self.payload.borrow_mut().replace(payload);
 

@@ -1,5 +1,5 @@
 {
-    "k": 15,
+    "k": 17,
     "num_advice_per_phase": [
         5,
         0
@@ -11,12 +11,12 @@
     ],
     "lookup_bits": 14,
     "num_rlc_columns": 0,
-    "keccak_rows_per_round": 50,
+    "keccak_rows_per_round": 20,
     "agg_params": {
-        "degree": 21,
-        "num_advice": 11,
-        "num_lookup_advice": 1,
+        "degree": 20,
+        "num_advice": 13,
+        "num_lookup_advice": 2,
         "num_fixed": 1,
-        "lookup_bits": 20
+        "lookup_bits": 19
     }
 }

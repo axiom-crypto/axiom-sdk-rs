@@ -1,7 +1,8 @@
-use std::env;
+use std::{collections::HashMap, env};
 
 use anyhow::anyhow;
 use axiom_codec::{
+    encoder::native::get_query_schema_hash,
     types::native::{AxiomV2ComputeQuery, AxiomV2ComputeSnark, SubqueryResult},
     utils::native::decode_hilo_to_h256,
     HiLo,
@@ -9,28 +10,36 @@ use axiom_codec::{
 use axiom_query::{
     axiom_eth::{
         halo2_base::{
-            gates::{GateInstructions, RangeChip, RangeInstructions},
+            gates::{circuit::BaseCircuitParams, GateInstructions, RangeChip, RangeInstructions},
             utils::{biguint_to_fe, modulus},
             AssignedValue, Context,
             QuantumCell::Constant,
         },
-        halo2_proofs::plonk::VerifyingKey,
+        halo2_proofs::{
+            plonk::{Circuit, VerifyingKey},
+            poly::kzg::commitment::ParamsKZG,
+        },
         halo2curves::{
-            bn256::{Bn256, G1Affine},
+            bn256::{Bn256, Fr, G1Affine},
             group::GroupEncoding,
         },
+        rlc::circuit::RlcCircuitParams,
         snark_verifier::{
             pcs::{
                 kzg::{KzgAccumulator, KzgDecidingKey, LimbsEncoding},
                 AccumulatorEncoding,
             },
+            system::halo2::{compile, Config},
             verifier::{plonk::PlonkProof, SnarkVerifier},
         },
         snark_verifier_sdk::{
-            halo2::{PoseidonTranscript, POSEIDON_SPEC},
-            NativeLoader, PlonkVerifier, Snark, BITS, LIMBS, SHPLONK,
+            halo2::{aggregation::AggregationCircuit, PoseidonTranscript, POSEIDON_SPEC},
+            CircuitExt, NativeLoader, PlonkVerifier, Snark, BITS, LIMBS, SHPLONK,
         },
-        utils::{keccak::decorator::RlcKeccakCircuitParams, snark_verifier::NUM_FE_ACCUMULATOR},
+        utils::{
+            build_utils::keygen::get_circuit_id, keccak::decorator::RlcKeccakCircuitParams,
+            snark_verifier::NUM_FE_ACCUMULATOR,
+        },
         Field,
     },
     components::results::types::LogicOutputResultsRoot,
@@ -41,8 +50,8 @@ use axiom_query::{
 };
 use dotenv::dotenv;
 use ethers::{
-    providers::{Http, Provider},
-    types::Bytes,
+    providers::{Http, JsonRpcClient, Provider},
+    types::{Bytes, H256},
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -50,7 +59,12 @@ use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::One;
 
-use crate::types::{AxiomCircuitParams, AxiomV2CircuitOutput, AxiomV2DataAndResults};
+use crate::{
+    scaffold::{AxiomCircuit, AxiomCircuitScaffold},
+    types::{
+        AxiomCircuitParams, AxiomClientCircuitMetadata, AxiomV2CircuitOutput, AxiomV2DataAndResults,
+    },
+};
 
 const NUM_BYTES_ACCUMULATOR: usize = 64;
 
@@ -283,6 +297,125 @@ pub fn verify_snark(dk: &KzgDecidingKey<Bn256>, snark: &Snark) -> anyhow::Result
     PlonkVerifier::verify(dk, &snark.protocol, &snark.instances, &proof)
         .map_err(|_| anyhow!("PlonkVerifier failed"))?;
     Ok(())
+}
+
+/// This function gets query schema from an AxiomV2ComputeQuery
+pub fn get_query_schema_from_compute_query(
+    compute_query: AxiomV2ComputeQuery,
+) -> anyhow::Result<H256> {
+    Ok(get_query_schema_hash(
+        compute_query.k,
+        compute_query.result_len,
+        &compute_query.vkey,
+    )?)
+}
+
+/// This function gets AxiomClientCircuitMetadata from AxiomV2DataAndResults and vkey
+pub fn get_axiom_client_circuit_metadata<
+    P: JsonRpcClient + Clone,
+    S: AxiomCircuitScaffold<P, Fr>,
+>(
+    circuit: &AxiomCircuit<Fr, P, S>,
+    kzg_params: &ParamsKZG<Bn256>,
+    vk: &VerifyingKey<G1Affine>,
+) -> AxiomClientCircuitMetadata {
+    let circuit_output = circuit.scaffold_output();
+    let protocol = compile(
+        kzg_params,
+        vk,
+        Config::kzg().with_num_instance(circuit.num_instance()),
+    );
+    let params = circuit.params();
+    let rlc_keccak_params = RlcKeccakCircuitParams::from(params);
+    let rlc_params = rlc_keccak_params.clone().rlc;
+    let metadata =
+        get_metadata_from_protocol(&protocol, rlc_params, circuit.max_user_outputs).unwrap();
+    let k = rlc_keccak_params.k();
+    let circuit_id = get_circuit_id(vk);
+    let partial_vk = get_onchain_vk_from_protocol(&protocol, metadata.clone());
+    let partial_vk_output = write_onchain_vkey(&partial_vk).unwrap();
+    let query_schema = get_query_schema_hash(
+        k as u8,
+        circuit_output.compute_results.len() as u16,
+        &partial_vk_output,
+    )
+    .unwrap();
+
+    let mut data_query_size: HashMap<usize, usize> = HashMap::new();
+    for subquery in circuit_output.data_query.iter() {
+        let subquery_type = subquery.subquery_type;
+        *data_query_size.entry(subquery_type as usize).or_insert(0) += 1;
+    }
+
+    AxiomClientCircuitMetadata {
+        metadata,
+        circuit_id,
+        agg_circuit_id: None,
+        preprocessed_len: protocol.preprocessed.len(),
+        max_user_outputs: circuit.max_user_outputs,
+        max_user_subqueries: circuit.max_user_subqueries,
+        query_schema,
+        data_query_size,
+    }
+}
+
+/// This function gets AxiomClientCircuitMetadata from AxiomV2DataAndResults and vkey
+pub fn get_agg_axiom_client_circuit_metadata<
+    P: JsonRpcClient + Clone,
+    S: AxiomCircuitScaffold<P, Fr>,
+>(
+    circuit: &AxiomCircuit<Fr, P, S>,
+    kzg_params: &ParamsKZG<Bn256>,
+    vk: &VerifyingKey<G1Affine>,
+    agg_vk: &VerifyingKey<G1Affine>,
+    agg_params: BaseCircuitParams,
+) -> AxiomClientCircuitMetadata {
+    let circuit_output = circuit.scaffold_output();
+    let mut num_instance = circuit.num_instance();
+    debug_assert_eq!(num_instance.len(), 1);
+    num_instance[0] += NUM_FE_ACCUMULATOR;
+    let protocol = compile(
+        kzg_params,
+        agg_vk,
+        Config::kzg()
+            .with_num_instance(num_instance)
+            .with_accumulator_indices(AggregationCircuit::accumulator_indices()),
+    );
+    let rlc_params = RlcCircuitParams {
+        base: agg_params,
+        num_rlc_columns: 0,
+    };
+    let metadata =
+        get_metadata_from_protocol(&protocol, rlc_params.clone(), circuit.max_user_outputs)
+            .unwrap();
+    let k = rlc_params.base.k;
+    let agg_circuit_id = get_circuit_id(agg_vk);
+    let circuit_id = get_circuit_id(vk);
+    let partial_vk = get_onchain_vk_from_protocol(&protocol, metadata.clone());
+    let partial_vk_output = write_onchain_vkey(&partial_vk).unwrap();
+    let query_schema = get_query_schema_hash(
+        k as u8,
+        circuit_output.compute_results.len() as u16,
+        &partial_vk_output,
+    )
+    .unwrap();
+
+    let mut data_query_size: HashMap<usize, usize> = HashMap::new();
+    for subquery in circuit_output.data_query.iter() {
+        let subquery_type = subquery.subquery_type;
+        *data_query_size.entry(subquery_type as usize).or_insert(0) += 1;
+    }
+
+    AxiomClientCircuitMetadata {
+        metadata,
+        circuit_id,
+        agg_circuit_id: Some(agg_circuit_id),
+        preprocessed_len: protocol.preprocessed.len(),
+        max_user_outputs: circuit.max_user_outputs,
+        max_user_subqueries: circuit.max_user_subqueries,
+        query_schema,
+        data_query_size,
+    }
 }
 
 lazy_static! {
