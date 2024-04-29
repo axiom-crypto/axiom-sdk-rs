@@ -14,7 +14,10 @@ use test_case::test_case;
 
 use super::{
     shared_tests::check_compute_proof_and_query_format,
-    utils::{all_subqueries_call, header_call, mapping_call, receipt_call, storage_call, tx_call},
+    utils::{
+        all_subqueries_call, ecdsa_call, header_call, mapping_call, receipt_call, storage_call,
+        tx_call,
+    },
 };
 use crate::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
@@ -68,6 +71,7 @@ base_test_struct!(StorageTest, storage_call);
 base_test_struct!(MappingTest, mapping_call);
 base_test_struct!(TxTest, tx_call);
 base_test_struct!(AllSubqueryTest, all_subqueries_call);
+base_test_struct!(EcdsaTest, ecdsa_call);
 
 // #[test_case(AccountTest)]
 // #[test_case(HeaderTest)]
@@ -87,6 +91,7 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
 #[test_case(StorageTest)]
 #[test_case(MappingTest)]
 #[test_case(TxTest)]
+#[test_case(EcdsaTest)]
 pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_base_test_params();
     let client = get_provider();

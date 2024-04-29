@@ -16,7 +16,7 @@ pub fn get_subquery_type_from_any_subquery(any_subquery: &AnySubquery) -> u64 {
         AnySubquery::Receipt(_) => SubqueryType::Receipt,
         AnySubquery::Transaction(_) => SubqueryType::Transaction,
         AnySubquery::SolidityNestedMapping(_) => SubqueryType::SolidityNestedMapping,
-        _ => panic!("Unsupported subquery type"),
+        AnySubquery::ECDSA(_) => SubqueryType::ECDSA,
     };
     subquery_type as u64
 }

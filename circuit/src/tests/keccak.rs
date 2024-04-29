@@ -26,7 +26,7 @@ use test_case::test_case;
 
 use super::{
     shared_tests::single_instance_test,
-    utils::{all_subqueries_call, mapping_call, receipt_call, storage_call, tx_call},
+    utils::{all_subqueries_call, ecdsa_call, mapping_call, receipt_call, storage_call, tx_call},
 };
 use crate::{
     aggregation::create_aggregation_circuit,
@@ -108,6 +108,7 @@ keccak_test_struct!(StorageTest, storage_call);
 keccak_test_struct!(MappingTest, mapping_call);
 keccak_test_struct!(TxTest, tx_call);
 keccak_test_struct!(AllSubqueryTest, all_subqueries_call);
+keccak_test_struct!(ECDSATest, ecdsa_call);
 
 // #[test_case(AccountTest)]
 // #[test_case(HeaderTest)]
@@ -134,6 +135,7 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
 #[test_case(StorageTest)]
 #[test_case(MappingTest)]
 #[test_case(TxTest)]
+#[test_case(ECDSATest)]
 pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_keccak_test_params();
     let agg_circuit_params = get_agg_test_params();
