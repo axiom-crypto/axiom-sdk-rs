@@ -7,11 +7,14 @@ use axiom_codec::{
     HiLo,
 };
 use axiom_components::{
-    groth16::{native::verify_groth16, types::Groth16VerifierInput},
-    utils::flatten::InputFlatten,
+    framework::utils::create_hasher,
+    groth16::{
+        native::verify_groth16, types::Groth16VerifierComponentInput, unflatten_groth16_input,
+        MAX_NUM_FE_PER_INPUT, MAX_NUM_FE_PER_INPUT_NO_HASH, NUM_FE_PER_CHUNK, NUM_FE_PER_INPUT,
+    },
 };
 use axiom_query::axiom_eth::{
-    halo2_base::{AssignedValue, Context, ContextTag},
+    halo2_base::{gates::RangeChip, AssignedValue, Context, ContextTag},
     keccak::promise::{KeccakFixLenCall, KeccakVarLenCall},
     utils::encode_h256_to_hilo,
     Field,
@@ -27,7 +30,9 @@ use super::{
     keccak::{KeccakSubquery, KeccakSubqueryTypes},
     types::Subquery,
 };
-use crate::subquery::{types::RawSubquery, utils::get_subquery_type_from_any_subquery};
+use crate::subquery::{
+    groth16::MAX_PUBLIC_INPUTS, types::RawSubquery, utils::get_subquery_type_from_any_subquery,
+};
 
 pub trait FetchSubquery<F: Field>: Clone {
     fn flatten(&self) -> Vec<AssignedValue<F>>;
@@ -98,22 +103,12 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
             .collect_vec()
     }
 
-    pub fn call<T: FetchSubquery<F>>(
+    fn handle_subquery<T: FetchSubquery<F>>(
         &mut self,
         ctx: &mut Context<F>,
         subquery: T,
+        result: H256,
     ) -> HiLo<AssignedValue<F>> {
-        let result = if self.mock_subquery_call {
-            H256::zero()
-        } else if let std::collections::hash_map::Entry::Vacant(e) =
-            self.subquery_cache.entry(subquery.any_subquery())
-        {
-            let val = subquery.fetch(&self.provider).unwrap();
-            e.insert(val);
-            val
-        } else {
-            *self.subquery_cache.get(&subquery.any_subquery()).unwrap()
-        };
         let any_subquery = subquery.any_subquery();
         let val = (any_subquery.clone(), result);
         self.subqueries
@@ -137,6 +132,25 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
             .and_modify(|thread| thread.extend(flattened_subquery.clone()))
             .or_insert(flattened_subquery);
         HiLo::from_hi_lo([hi, lo])
+    }
+
+    pub fn call<T: FetchSubquery<F>>(
+        &mut self,
+        ctx: &mut Context<F>,
+        subquery: T,
+    ) -> HiLo<AssignedValue<F>> {
+        let result = if self.mock_subquery_call {
+            H256::zero()
+        } else if let std::collections::hash_map::Entry::Vacant(e) =
+            self.subquery_cache.entry(subquery.any_subquery())
+        {
+            let val = subquery.fetch(&self.provider).unwrap();
+            e.insert(val);
+            val
+        } else {
+            *self.subquery_cache.get(&subquery.any_subquery()).unwrap()
+        };
+        self.handle_subquery(ctx, subquery, result)
     }
 
     pub fn keccak<T: KeccakSubquery<F>>(
@@ -163,11 +177,38 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
     pub fn groth16_verify(
         &mut self,
         ctx: &mut Context<F>,
+        range: &RangeChip<F>,
         input: Groth16AssignedInput<F>,
-    ) -> AssignedValue<F> {
-        // let input_vals = input.flatten().iter().map(|v| *v.value()).collect_vec();
-        // let input = Groth16VerifierInput::unflatten(input_vals).unwrap();
-        // let output = verify_groth16(input, 4);
-        ctx.load_witness(F::from(1 as u64))
+    ) -> HiLo<AssignedValue<F>> {
+        let mut fe = input.vkey_bytes.to_vec();
+        fe.extend(input.proof_bytes.to_vec());
+        fe.extend(input.public_inputs.to_vec());
+        assert_eq!(fe.len(), NUM_FE_PER_INPUT);
+        let zero = ctx.load_witness(F::ZERO);
+        fe.resize_with(MAX_NUM_FE_PER_INPUT_NO_HASH, || zero);
+        let mut hasher = create_hasher();
+        hasher.initialize_consts(ctx, &range.gate);
+        let res = hasher.hash_fix_len_array(ctx, &range.gate, &fe);
+        fe.push(res);
+        let unflattened = unflatten_groth16_input(fe.iter().map(|v| *v.value()).collect_vec());
+        let res = verify_groth16(unflattened, MAX_PUBLIC_INPUTS);
+        assert_eq!(fe.len(), MAX_NUM_FE_PER_INPUT);
+        let subqueries = fe
+            .chunks(NUM_FE_PER_CHUNK)
+            .map(|x| Groth16VerifierComponentInput {
+                bytes: x.to_vec().into(),
+            })
+            .collect_vec();
+        let outputs = vec![
+            H256::from_low_u64_be(2),
+            H256::from_low_u64_be(2),
+            H256::from_low_u64_be(res as u64),
+        ];
+        let subquery_output_pairs = subqueries
+            .into_iter()
+            .zip(outputs.into_iter())
+            .map(|(subquery, output)| self.handle_subquery(ctx, subquery, output))
+            .collect_vec();
+        *subquery_output_pairs.last().unwrap()
     }
 }
