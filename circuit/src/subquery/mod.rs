@@ -1,5 +1,6 @@
 pub(crate) mod account;
 pub(crate) mod ecdsa;
+pub mod groth16;
 pub(crate) mod header;
 pub(crate) mod mapping;
 pub(crate) mod receipt;

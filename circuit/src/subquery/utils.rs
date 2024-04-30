@@ -17,6 +17,7 @@ pub fn get_subquery_type_from_any_subquery(any_subquery: &AnySubquery) -> u64 {
         AnySubquery::Transaction(_) => SubqueryType::Transaction,
         AnySubquery::SolidityNestedMapping(_) => SubqueryType::SolidityNestedMapping,
         AnySubquery::ECDSA(_) => SubqueryType::ECDSA,
+        AnySubquery::Groth16(_) => SubqueryType::Groth16,
     };
     subquery_type as u64
 }
