@@ -6,6 +6,10 @@ use axiom_codec::{
     types::{field_elements::SUBQUERY_RESULT_LEN, native::AnySubquery},
     HiLo,
 };
+use axiom_components::{
+    groth16::{native::verify_groth16, types::Groth16VerifierInput},
+    utils::flatten::InputFlatten,
+};
 use axiom_query::axiom_eth::{
     halo2_base::{AssignedValue, Context, ContextTag},
     keccak::promise::{KeccakFixLenCall, KeccakVarLenCall},
@@ -19,6 +23,7 @@ use ethers::{
 use itertools::Itertools;
 
 use super::{
+    groth16::Groth16AssignedInput,
     keccak::{KeccakSubquery, KeccakSubqueryTypes},
     types::Subquery,
 };
@@ -153,5 +158,16 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
             }
         };
         hilo
+    }
+
+    pub fn groth16_verify(
+        &mut self,
+        ctx: &mut Context<F>,
+        input: Groth16AssignedInput<F>,
+    ) -> AssignedValue<F> {
+        // let input_vals = input.flatten().iter().map(|v| *v.value()).collect_vec();
+        // let input = Groth16VerifierInput::unflatten(input_vals).unwrap();
+        // let output = verify_groth16(input, 4);
+        ctx.load_witness(F::from(1 as u64))
     }
 }

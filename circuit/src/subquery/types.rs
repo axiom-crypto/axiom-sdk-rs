@@ -163,6 +163,7 @@ impl Serialize for RawSubquery {
             AnySubquery::Receipt(ref inner) => inner.serialize(serializer),
             AnySubquery::SolidityNestedMapping(ref inner) => inner.serialize(serializer),
             AnySubquery::ECDSA(ref inner) => inner.serialize(serializer),
+            AnySubquery::Groth16(ref inner) => inner.serialize(serializer),
         }
     }
 }
