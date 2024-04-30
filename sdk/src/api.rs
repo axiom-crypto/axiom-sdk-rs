@@ -202,7 +202,7 @@ impl<'a> AxiomAPI<'a> {
         vkey_bytes: &[AssignedValue<Fr>; NUM_FE_VKEY],
         proof_bytes: &[AssignedValue<Fr>; NUM_FE_PROOF],
         public_inputs: &[AssignedValue<Fr>; MAX_PUBLIC_INPUTS],
-    ) -> AssignedValue<Fr> {
+    ) -> HiLo<AssignedValue<Fr>> {
         let ctx = self.builder.base.main(0);
         let subquery_caller = self.subquery_caller.clone();
         let mut subquery_caller = subquery_caller.lock().unwrap();
@@ -213,7 +213,7 @@ impl<'a> AxiomAPI<'a> {
             public_inputs: *public_inputs,
         };
 
-        subquery_caller.groth16_verify(ctx, input)
+        subquery_caller.groth16_verify(ctx, self.range, input)
     }
 
     pub fn keccak_fix_len(&mut self, bytes: Vec<AssignedValue<Fr>>) -> HiLo<AssignedValue<Fr>> {
