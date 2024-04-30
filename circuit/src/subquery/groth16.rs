@@ -4,7 +4,7 @@ pub use axiom_components::groth16::{MAX_PUBLIC_INPUTS, NUM_FE_PROOF, NUM_FE_VKEY
 use axiom_components::{
     groth16::{
         flatten_groth16_input,
-        test::default_groth16_input,
+        test::{default_groth16_input, parse_input, read_and_parse_input},
         types::{Groth16NativeInput, Groth16VerifierComponentInput, Groth16VerifierInput},
     },
     utils::flatten::InputFlatten,
@@ -70,5 +70,23 @@ pub fn flatten_groth16_input_into_separated_chunks<F: Field>(
 
 pub fn default_groth16_subquery_input() -> Groth16Input<Fr> {
     let input = default_groth16_input();
+    flatten_groth16_input_into_separated_chunks(input)
+}
+
+pub fn read_and_parse_groth16_input(
+    vk_path: String,
+    pf_path: String,
+    pub_path: String,
+) -> Groth16Input<Fr> {
+    let input = read_and_parse_input(vk_path, pf_path, pub_path);
+    flatten_groth16_input_into_separated_chunks(input)
+}
+
+pub fn parse_groth16_input(
+    vk_string: String,
+    pf_string: String,
+    pub_string: String,
+) -> Groth16Input<Fr> {
+    let input = parse_input(vk_string, pf_string, pub_string);
     flatten_groth16_input_into_separated_chunks(input)
 }
