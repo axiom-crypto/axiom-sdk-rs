@@ -1,0 +1,27 @@
+FROM rust:1.74 as builder
+
+RUN apt-get update && apt-get install -y \
+    git \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update -y
+RUN git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+WORKDIR /code
+COPY . .
+
+ENV JEMALLOC_SYS_WITH_MALLOC_CONF="background_thread:true,metadata_thp:always,dirty_decay_ms:1000000,muzzy_decay_ms:1000000,abort_conf:true"
+ENV RUST_LOG=info
+
+RUN {{build_command}}
+
+FROM debian:stable-slim
+WORKDIR /code
+RUN apt update \
+    && apt install -y openssl ca-certificates \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --from=builder {{target_path}} ./bin
+EXPOSE 8000
