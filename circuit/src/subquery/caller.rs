@@ -12,11 +12,12 @@ use axiom_components::{
         native::verify_groth16, types::Groth16VerifierComponentInput, unflatten_groth16_input,
         MAX_NUM_FE_PER_INPUT, MAX_NUM_FE_PER_INPUT_NO_HASH, NUM_FE_PER_CHUNK, NUM_FE_PER_INPUT,
     },
+    halo2_ecc::halo2_base::gates::RangeInstructions,
 };
 use axiom_query::axiom_eth::{
     halo2_base::{gates::RangeChip, AssignedValue, Context, ContextTag},
     keccak::promise::{KeccakFixLenCall, KeccakVarLenCall},
-    utils::encode_h256_to_hilo,
+    utils::{encode_h256_to_hilo, uint_to_bytes_be},
     Field,
 };
 use ethers::{
@@ -195,8 +196,10 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
         assert_eq!(fe.len(), MAX_NUM_FE_PER_INPUT);
         let subqueries = fe
             .chunks(NUM_FE_PER_CHUNK)
-            .map(|x| Groth16VerifierComponentInput {
-                bytes: x.to_vec().into(),
+            .map(|x| {
+                let x = x.to_vec();
+                let res = uint_to_bytes_be(ctx, range, &x[0], 32)[0];
+                (Groth16VerifierComponentInput { bytes: x.into() }, *res)
             })
             .collect_vec();
         let outputs = vec![
@@ -206,8 +209,14 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
         ];
         let subquery_output_pairs = subqueries
             .into_iter()
-            .zip(outputs.into_iter())
-            .map(|(subquery, output)| self.handle_subquery(ctx, subquery, output))
+            .zip(outputs)
+            .map(|((subquery, res), output)| {
+                let hilo_output = self.handle_subquery(ctx, subquery, output);
+                dbg!(&hilo_output.lo().value());
+                dbg!(res.value());
+                ctx.constrain_equal(&hilo_output.lo(), &res);
+                hilo_output
+            })
             .collect_vec();
         *subquery_output_pairs.last().unwrap()
     }
