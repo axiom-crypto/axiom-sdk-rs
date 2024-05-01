@@ -28,13 +28,8 @@ impl AxiomComputeFn for Groth16ClientInput {
             DEFAULT_PROOF_JSON.to_string(),
             DEFAULT_PUBLIC_INPUTS_JSON.to_string(),
         );
-        let (assigned_vkey, assigned_proof, assigned_public_inputs) =
-            assign_groth16_input(api, input);
-        api.groth16_verify(
-            &assigned_vkey.try_into().unwrap(),
-            &assigned_proof.try_into().unwrap(),
-            &assigned_public_inputs.try_into().unwrap(),
-        );
+        let assigned_input = assign_groth16_input(api, input);
+        api.groth16_verify(assigned_input);
         vec![]
     }
 }

@@ -8,11 +8,7 @@ use axiom_circuit::{
         rlc::circuit::builder::RlcCircuitBuilder,
         utils::uint_to_bytes_be,
     },
-    subquery::{
-        caller::SubqueryCaller,
-        groth16::{Groth16AssignedInput, MAX_PUBLIC_INPUTS, NUM_FE_PROOF, NUM_FE_VKEY},
-        types::ECDSAComponentInput,
-    },
+    subquery::{caller::SubqueryCaller, groth16::Groth16AssignedInput, types::ECDSAComponentInput},
     utils::{from_hi_lo, to_hi_lo},
 };
 use ethers::providers::Http;
@@ -197,21 +193,10 @@ impl<'a> AxiomAPI<'a> {
         subquery_caller.call(ctx, input)
     }
 
-    pub fn groth16_verify(
-        &mut self,
-        vkey_bytes: &[AssignedValue<Fr>; NUM_FE_VKEY],
-        proof_bytes: &[AssignedValue<Fr>; NUM_FE_PROOF],
-        public_inputs: &[AssignedValue<Fr>; MAX_PUBLIC_INPUTS],
-    ) -> HiLo<AssignedValue<Fr>> {
+    pub fn groth16_verify(&mut self, input: Groth16AssignedInput<Fr>) -> HiLo<AssignedValue<Fr>> {
         let ctx = self.builder.base.main(0);
         let subquery_caller = self.subquery_caller.clone();
         let mut subquery_caller = subquery_caller.lock().unwrap();
-
-        let input = Groth16AssignedInput {
-            vkey_bytes: *vkey_bytes,
-            proof_bytes: *proof_bytes,
-            public_inputs: *public_inputs,
-        };
 
         subquery_caller.groth16_verify(ctx, self.range, input)
     }
