@@ -1,14 +1,19 @@
 use std::{
     collections::hash_map::DefaultHasher,
     env,
+    fmt::Debug,
     hash::{Hash, Hasher},
     path::PathBuf,
 };
 
 use axiom_circuit::{
-    axiom_eth::{halo2curves::bn256::Fr, utils::build_utils::keygen::read_srs_from_dir},
+    axiom_eth::{
+        halo2_base::AssignedValue, halo2curves::bn256::Fr,
+        utils::build_utils::keygen::read_srs_from_dir,
+    },
     run::{aggregation::agg_circuit_run, inner::run},
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
+    types::AxiomV2CircuitOutput,
 };
 use ethers::providers::{Http, Provider};
 use rocket::State;
@@ -18,9 +23,37 @@ use self::types::{
     AggregationCircuitCtx, AxiomComputeCircuitCtx, AxiomComputeCtx, AxiomComputeJobStatus,
     AxiomComputeManager, AxiomComputeServerCmd,
 };
-use crate::utils::io::{read_agg_pk_and_pinning, read_metadata, read_pinning, read_pk};
+use crate::{
+    compute::{AxiomCompute, AxiomComputeFn},
+    utils::io::{read_agg_pk_and_pinning, read_metadata, read_pinning, read_pk},
+};
 
 pub mod types;
+
+pub trait AxiomClientProvingServer: AxiomCircuitScaffold<Http, Fr> {
+    type Context = ();
+    type RequestInput: DeserializeOwned;
+
+    fn construct_context(params: Self::CoreParams) -> Self::Context;
+    fn process_input(ctx: Self::Context, input: Self::RequestInput) -> Self::InputValue;
+    #[allow(unused_variables)]
+    fn after_prove(ctx: Self::Context, output: AxiomV2CircuitOutput) {}
+}
+
+impl<A: AxiomComputeFn> AxiomClientProvingServer for AxiomCompute<A>
+where
+    A::Input<Fr>: Default + Debug,
+    A::Input<AssignedValue<Fr>>: Debug,
+{
+    type Context = ();
+    type RequestInput = A::LogicInput;
+    fn construct_context(_: A::CoreParams) -> Self::Context {
+        ()
+    }
+    fn process_input(_ctx: Self::Context, input: Self::RequestInput) -> A::Input<Fr> {
+        input.into()
+    }
+}
 
 pub async fn add_job(ctx: &State<AxiomComputeManager>, job: String) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -38,7 +71,7 @@ pub async fn add_job(ctx: &State<AxiomComputeManager>, job: String) -> u64 {
     job_id
 }
 
-pub fn prover_loop<A: AxiomCircuitScaffold<Http, Fr>, I: Into<A::InputValue> + DeserializeOwned>(
+pub fn prover_loop<A: AxiomClientProvingServer>(
     manager: AxiomComputeManager,
     ctx: AxiomComputeCtx<A::CoreParams>,
     mut shutdown: tokio::sync::mpsc::Receiver<()>,
@@ -55,12 +88,14 @@ pub fn prover_loop<A: AxiomCircuitScaffold<Http, Fr>, I: Into<A::InputValue> + D
                 inputs_lock.clone()
             };
             let raw_input = inputs.get(&job).unwrap();
-            let input: I = serde_json::from_str(raw_input).unwrap();
+            let input: A::RequestInput = serde_json::from_str(raw_input).unwrap();
+            let server_ctx = A::construct_context(ctx.child.pinning.core_params.clone());
+            let processed_input = A::process_input(server_ctx, input);
             let runner = AxiomCircuit::<Fr, Http, A>::prover(
                 ctx.provider.clone(),
                 ctx.child.pinning.clone(),
             )
-            .use_inputs(Some(input.into()));
+            .use_inputs(Some(processed_input));
             let scaffold_output = runner.scaffold_output();
             manager
                 .job_status
@@ -194,12 +229,11 @@ pub async fn get_circuit_output(
 #[macro_export]
 macro_rules! axiom_compute_prover_server {
     ($A:ty) => {
-        axiom_compute_prover_server!($crate::axiom::AxiomCompute<$A>, $A);
-    };
-    ($A:ty, $I: ty) => {
         #[rocket::post("/start_proving_job", format = "json", data = "<req>")]
         pub async fn start_proving_job(
-            req: rocket::serde::json::Json<$I>,
+            req: rocket::serde::json::Json<
+                <$A as $crate::server::AxiomClientProvingServer>::RequestInput,
+            >,
             ctx: &rocket::State<$crate::server::types::AxiomComputeManager>,
         ) -> String {
             let input = serde_json::to_string(&req.into_inner()).unwrap();
@@ -215,7 +249,7 @@ macro_rules! axiom_compute_prover_server {
             let worker_manager = job_queue.clone();
             std::thread::spawn(|| {
                 let ctx = $crate::server::initialize::<$A>(options);
-                $crate::server::prover_loop::<$A, $I>(worker_manager, ctx, shutdown_rx);
+                $crate::server::prover_loop::<$A>(worker_manager, ctx, shutdown_rx);
             });
             rocket::build()
                 .configure(rocket::Config {

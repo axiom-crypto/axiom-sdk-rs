@@ -28,7 +28,7 @@ macro_rules! axiom_main {
         axiom_main!($crate::axiom::AxiomCompute<$A>, $A);
     };
     ($A:ty, $I: ty) => {
-        $crate::axiom_compute_prover_server!($A, $I);
+        $crate::axiom_compute_prover_server!($A);
         #[tokio::main]
         async fn main() {
             env_logger::init();
