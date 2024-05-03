@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 use crate::{
-    cli::types::AxiomCircuitRunnerOptions, dockerize::DockerizeCmd,
+    dockerize::DockerizeCmd, run::types::AxiomCircuitRunnerOptions,
     server::types::AxiomComputeServerCmd,
 };
 
@@ -32,18 +32,18 @@ macro_rules! axiom_main {
         #[tokio::main]
         async fn main() {
             env_logger::init();
-            let cli = <$crate::bin::Cli as clap::Parser>::parse();
+            let cli = <$crate::cli::Cli as clap::Parser>::parse();
             match cli.command {
-                $crate::bin::Commands::Serve(args) => {
+                $crate::cli::Commands::Serve(args) => {
                     let _ = server(args).await;
                 }
-                $crate::bin::Commands::Run(args) => {
+                $crate::cli::Commands::Run(args) => {
                     let thread = std::thread::spawn(|| {
-                        $crate::cli::run_cli_on_scaffold::<$A, $I>(args);
+                        $crate::run::run_cli_on_scaffold::<$A, $I>(args);
                     });
                     thread.join().unwrap();
                 }
-                $crate::bin::Commands::Dockerize(args) => {
+                $crate::cli::Commands::Dockerize(args) => {
                     let env_args: Vec<String> = std::env::args().collect();
                     $crate::dockerize::gen_dockerfile(env_args, args);
                 }

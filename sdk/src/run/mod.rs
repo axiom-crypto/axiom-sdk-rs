@@ -49,7 +49,7 @@ pub fn run_cli_on_scaffold<
     cli: AxiomCircuitRunnerOptions,
 ) {
     match cli.command {
-        SnarkCmd::Mock | SnarkCmd::Run => {
+        SnarkCmd::Mock | SnarkCmd::Prove => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
             }
@@ -130,7 +130,7 @@ pub fn run_cli_on_scaffold<
             AxiomCircuitParams::Base(base_params)
         }
     } else {
-        let degree = if cli.command == SnarkCmd::Run {
+        let degree = if cli.command == SnarkCmd::Prove {
             // The k will be read from the pinning file instead
             12
         } else {
@@ -208,7 +208,7 @@ pub fn run_cli_on_scaffold<
                     .join(PathBuf::from(format!("{}.json", cli.name))),
             );
         }
-        SnarkCmd::Run => {
+        SnarkCmd::Prove => {
             let metadata = read_metadata(
                 cli.data_path
                     .join(PathBuf::from(format!("{}.json", cli.name))),

@@ -5,15 +5,15 @@
 See [./examples/account_age.rs](./examples/account_age.rs) for an example Axiom compute circuit. To run the `account_age` circuit:
 
 ```
-cargo run --example account_age -- --input data/account_age_input.json -k 12 -p <PROVIDER_URI> <CMD>
+cargo run --example account_age -- run --input data/account_age_input.json -k 12 -p <PROVIDER_URI> <CMD>
 ```
 
-where `PROVIDER_URI` is a JSON-RPC URL, and `CMD` is `mock`, `prove`, `keygen`, or `run`.
+where `PROVIDER_URI` is a JSON-RPC URL, and `CMD` is `mock`, `keygen`, or `prove`.
 
 
 ## CLI 
 
-```Usage: account_age <COMMAND>
+```Usage: account_age <COMMAND> <SUBCOMMAND ARGS> <SUBCOMMAND>
 
 Commands:
   serve  Run a circuit proving server
@@ -35,7 +35,7 @@ Usage: account_age run [OPTIONS] <COMMAND>
 Commands:
   mock    Run the mock prover
   keygen  Generate new proving & verifying keys
-  run     Generate an Axiom compute query
+  prove     Generate an Axiom compute query
   help    Print this message or the help of the given subcommand(s)
 
 Options:

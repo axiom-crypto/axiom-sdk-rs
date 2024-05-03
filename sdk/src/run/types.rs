@@ -13,7 +13,7 @@ pub enum SnarkCmd {
     /// Generate new proving & verifying keys
     Keygen,
     /// Generate an Axiom compute query
-    Run,
+    Prove,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
