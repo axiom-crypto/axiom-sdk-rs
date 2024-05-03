@@ -16,6 +16,8 @@ use clap::Parser;
 use ethers::providers::{Http, Provider};
 use serde::Serialize;
 
+use super::AxiomClientProvingServer;
+
 #[derive(Clone, Debug)]
 pub struct AxiomComputeCircuitCtx<CoreParams> {
     pub pk: ProvingKey<G1Affine>,
@@ -31,10 +33,11 @@ pub struct AggregationCircuitCtx<CoreParams> {
 }
 
 #[derive(Clone, Debug)]
-pub struct AxiomComputeCtx<CoreParams> {
-    pub child: AxiomComputeCircuitCtx<CoreParams>,
-    pub agg: Option<AggregationCircuitCtx<CoreParams>>,
+pub struct AxiomComputeCtx<A: AxiomClientProvingServer> {
+    pub child: AxiomComputeCircuitCtx<A::CoreParams>,
+    pub agg: Option<AggregationCircuitCtx<A::CoreParams>>,
     pub provider: Provider<Http>,
+    pub server_ctx: A::Context,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -43,7 +46,10 @@ pub enum AxiomComputeJobStatus {
     DataQueryReady,
     InnerOutputReady,
     OutputReady,
-    Error,
+    CallbackSuccess,
+    ErrorInputPrep,
+    ErrorCallback,
+    ErrorInnerCircuit,
 }
 
 #[derive(Clone, Debug, Default)]
