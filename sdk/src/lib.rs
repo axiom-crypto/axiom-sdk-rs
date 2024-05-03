@@ -116,6 +116,7 @@
 
 #![allow(incomplete_features)]
 #![feature(associated_type_defaults)]
+#![feature(async_fn_in_trait)]
 mod api;
 
 // pub(crate) mod utils;
