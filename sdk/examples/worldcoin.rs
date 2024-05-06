@@ -1,4 +1,4 @@
-use std::{fmt::Debug, vec};
+use std::{fmt::Debug, string, vec};
 
 use axiom_circuit::subquery::groth16::{parse_groth16_input, Groth16Input};
 use axiom_sdk::{
@@ -8,6 +8,7 @@ use axiom_sdk::{
     subquery::groth16::assign_groth16_input,
     Fr,
 };
+use ethers::types::U256;
 use serde_json::{json, Value};
 
 #[AxiomComputeInput]
@@ -24,11 +25,12 @@ pub fn parse_worldcoin_input() -> Groth16Input<Fr> {
 
     let input_json: Value = serde_json::from_str(input_json_str).unwrap();
 
-    let mut public_input_json = json!([]);
-    public_input_json[0] = input_json["root"].clone();
-    public_input_json[1] = input_json["nullifierHash"].clone();
-    public_input_json[2] = input_json["signalHash"].clone();
-    public_input_json[3] = input_json["externalNullifierHash"].clone();
+    let public_input_json = json!([
+        hex_value_to_bigint_str(&input_json["root"]),
+        hex_value_to_bigint_str(&input_json["nullifier_hash"]),
+        hex_value_to_bigint_str(&input_json["signal_hash"]),
+        hex_value_to_bigint_str(&input_json["external_nullifier_hash"])
+    ]);
 
     // root, nullifierHash, signalHash, externalNullifierHash
 
@@ -37,9 +39,9 @@ pub fn parse_worldcoin_input() -> Groth16Input<Fr> {
     let proof = input_json["proof"].clone();
 
     let pf_string = json!({
-        "pi_a": [proof[0][0], proof[0][1], "1"],
-        "pi_b": [proof[1][0], proof[1][1], ["1", "0"]],
-        "pi_c": [proof[2][0], proof[2][1], "1"],
+        "pi_a": [hex_value_to_bigint_str(&proof[0][0]), hex_value_to_bigint_str(&proof[0][1]), "1"],
+        "pi_b": [[hex_value_to_bigint_str(&proof[1][0][0]), hex_value_to_bigint_str(&proof[1][0][1])], [hex_value_to_bigint_str(&proof[1][1][0]), hex_value_to_bigint_str(&proof[1][1][1])], ["1", "0"]],
+        "pi_c": [hex_value_to_bigint_str(&proof[2][0]), hex_value_to_bigint_str(&proof[2][1]), "1"],
         "protocol": "groth16",
         "curve": "bn128"
     })
@@ -47,6 +49,13 @@ pub fn parse_worldcoin_input() -> Groth16Input<Fr> {
 
     let input = parse_groth16_input(vk_string, pf_string, pub_string);
     input
+}
+
+fn hex_value_to_bigint_str(value: &Value) -> String {
+    println!("{}", value.as_str().unwrap().to_string());
+    let bigint = U256::from_str_radix(&value.as_str().unwrap().to_string()[2..], 16)
+        .expect("Failed to parse hex string");
+    bigint.to_string()
 }
 
 impl AxiomComputeFn for Groth16ClientInput {
