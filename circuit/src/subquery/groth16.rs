@@ -1,10 +1,10 @@
 use anyhow::Result;
 use axiom_codec::types::native::AnySubquery;
-pub use axiom_components::groth16::{MAX_PUBLIC_INPUTS, NUM_FE_PROOF, NUM_FE_VKEY};
+pub use axiom_components::groth16::NUM_FE_PROOF;
 use axiom_components::{
     groth16::{
-        flatten_groth16_input,
-        test::{default_groth16_input, parse_input, read_and_parse_input},
+        get_groth16_consts_from_max_pi,
+        test::{default_groth16_input, flatten_groth16_input, parse_input, read_and_parse_input},
         types::{Groth16NativeInput, Groth16VerifierComponentInput, Groth16VerifierInput},
     },
     utils::flatten::InputFlatten,
@@ -17,15 +17,15 @@ use ethers::{
 
 use super::caller::FetchSubquery;
 pub struct Groth16Input<F: Field> {
-    pub vkey_bytes: [F; NUM_FE_VKEY],
-    pub proof_bytes: [F; NUM_FE_PROOF],
-    pub public_inputs: [F; MAX_PUBLIC_INPUTS],
+    pub vkey_bytes: Vec<F>,
+    pub proof_bytes: Vec<F>,
+    pub public_inputs: Vec<F>,
 }
 
 pub struct Groth16AssignedInput<F: Field> {
-    pub vkey_bytes: [AssignedValue<F>; NUM_FE_VKEY],
-    pub proof_bytes: [AssignedValue<F>; NUM_FE_PROOF],
-    pub public_inputs: [AssignedValue<F>; MAX_PUBLIC_INPUTS],
+    pub vkey_bytes: Vec<AssignedValue<F>>,
+    pub proof_bytes: Vec<AssignedValue<F>>,
+    pub public_inputs: Vec<AssignedValue<F>>,
 }
 
 impl<F: Field> FetchSubquery<F> for Groth16VerifierComponentInput<AssignedValue<F>> {
@@ -49,16 +49,18 @@ impl<F: Field> FetchSubquery<F> for Groth16VerifierComponentInput<AssignedValue<
 
 pub fn flatten_groth16_input_into_separated_chunks<F: Field>(
     input: Groth16VerifierInput<F>,
+    max_pi: usize,
 ) -> Groth16Input<F> {
-    let mut packed_fe = flatten_groth16_input(input);
+    let constants = get_groth16_consts_from_max_pi(max_pi);
+    let mut packed_fe = flatten_groth16_input(input, max_pi);
     // remove the final hash
     packed_fe.pop();
-    let vkey = packed_fe[0..NUM_FE_VKEY].try_into().unwrap();
-    let proof = packed_fe[NUM_FE_VKEY..NUM_FE_VKEY + NUM_FE_PROOF]
+    let vkey = packed_fe[0..constants.num_fe_vkey].try_into().unwrap();
+    let proof = packed_fe[constants.num_fe_vkey..constants.num_fe_vkey + NUM_FE_PROOF]
         .try_into()
         .unwrap();
-    let public_inputs = packed_fe
-        [NUM_FE_VKEY + NUM_FE_PROOF..NUM_FE_VKEY + NUM_FE_PROOF + MAX_PUBLIC_INPUTS]
+    let public_inputs = packed_fe[constants.num_fe_vkey + NUM_FE_PROOF
+        ..constants.num_fe_vkey + NUM_FE_PROOF + constants.max_pi]
         .try_into()
         .unwrap();
     Groth16Input {
@@ -68,25 +70,27 @@ pub fn flatten_groth16_input_into_separated_chunks<F: Field>(
     }
 }
 
-pub fn default_groth16_subquery_input() -> Groth16Input<Fr> {
-    let input = default_groth16_input();
-    flatten_groth16_input_into_separated_chunks(input)
+pub fn default_groth16_subquery_input(max_pi: usize) -> Groth16Input<Fr> {
+    let input = default_groth16_input(max_pi);
+    flatten_groth16_input_into_separated_chunks(input, max_pi)
 }
 
 pub fn read_and_parse_groth16_input(
     vk_path: String,
     pf_path: String,
     pub_path: String,
+    max_pi: usize,
 ) -> Groth16Input<Fr> {
-    let input = read_and_parse_input(vk_path, pf_path, pub_path);
-    flatten_groth16_input_into_separated_chunks(input)
+    let input = read_and_parse_input(vk_path, pf_path, pub_path, max_pi);
+    flatten_groth16_input_into_separated_chunks(input, max_pi)
 }
 
 pub fn parse_groth16_input(
     vk_string: String,
     pf_string: String,
     pub_string: String,
+    max_pi: usize,
 ) -> Groth16Input<Fr> {
-    let input = parse_input(vk_string, pf_string, pub_string);
-    flatten_groth16_input_into_separated_chunks(input)
+    let input = parse_input(vk_string, pf_string, pub_string, max_pi);
+    flatten_groth16_input_into_separated_chunks(input, max_pi)
 }

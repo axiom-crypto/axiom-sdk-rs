@@ -52,6 +52,7 @@ pub struct AxiomCircuitPinning<CoreParams> {
     pub break_points: RlcThreadBreakPoints,
     pub max_user_outputs: usize,
     pub max_user_subqueries: usize,
+    pub max_groth16_pi: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

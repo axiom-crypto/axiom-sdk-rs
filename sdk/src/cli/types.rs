@@ -28,6 +28,7 @@ pub struct RawCircuitParams<CoreParams> {
     pub keccak_rows_per_round: Option<usize>,
     pub max_outputs: Option<usize>,
     pub max_subqueries: Option<usize>,
+    pub max_groth16_pi: Option<usize>,
     pub agg_params: Option<AggregationCircuitParams>,
     pub core_params: Option<CoreParams>,
 }

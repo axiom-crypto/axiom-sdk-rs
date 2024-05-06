@@ -9,10 +9,9 @@ use axiom_codec::{
 use axiom_components::{
     framework::utils::create_hasher,
     groth16::{
-        native::verify_groth16, types::Groth16VerifierComponentInput, unflatten_groth16_input,
-        MAX_NUM_FE_PER_INPUT, MAX_NUM_FE_PER_INPUT_NO_HASH, NUM_FE_PER_CHUNK, NUM_FE_PER_INPUT,
+        get_groth16_consts_from_max_pi, native::verify_groth16,
+        types::Groth16VerifierComponentInput, unflatten_groth16_input, NUM_FE_PER_CHUNK,
     },
-    halo2_ecc::halo2_base::gates::RangeInstructions,
 };
 use axiom_query::axiom_eth::{
     halo2_base::{gates::RangeChip, AssignedValue, Context, ContextTag},
@@ -31,9 +30,7 @@ use super::{
     keccak::{KeccakSubquery, KeccakSubqueryTypes},
     types::Subquery,
 };
-use crate::subquery::{
-    groth16::MAX_PUBLIC_INPUTS, types::RawSubquery, utils::get_subquery_type_from_any_subquery,
-};
+use crate::subquery::{types::RawSubquery, utils::get_subquery_type_from_any_subquery};
 
 pub trait FetchSubquery<F: Field>: Clone {
     fn flatten(&self) -> Vec<AssignedValue<F>>;
@@ -55,12 +52,13 @@ pub struct SubqueryCaller<P: JsonRpcClient, F: Field> {
     pub keccak_fix_len_calls: Vec<(KeccakFixLenCall<F>, HiLo<AssignedValue<F>>)>,
     pub keccak_var_len_calls: Vec<(KeccakVarLenCall<F>, HiLo<AssignedValue<F>>)>,
     subquery_cache: HashMap<AnySubquery, H256>,
+    groth16_max_pi: usize,
     // if true, the fetched subquery will always be H256::zero()
     mock_subquery_call: bool,
 }
 
 impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
-    pub fn new(provider: Provider<P>, mock: bool) -> Self {
+    pub fn new(provider: Provider<P>, groth16_max_pi: usize, mock: bool) -> Self {
         Self {
             provider,
             subqueries: BTreeMap::new(),
@@ -69,6 +67,7 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
             keccak_var_len_calls: Vec::new(),
             mock_subquery_call: mock,
             subquery_cache: HashMap::new(),
+            groth16_max_pi,
         }
     }
 
@@ -181,39 +180,44 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
         range: &RangeChip<F>,
         input: Groth16AssignedInput<F>,
     ) -> HiLo<AssignedValue<F>> {
-        let mut fe = input.vkey_bytes.to_vec();
-        fe.extend(input.proof_bytes.to_vec());
-        fe.extend(input.public_inputs.to_vec());
-        assert_eq!(fe.len(), NUM_FE_PER_INPUT);
+        let constants = get_groth16_consts_from_max_pi(self.groth16_max_pi);
+        let mut fe = input.vkey_bytes;
+        fe.extend(input.proof_bytes);
+        fe.extend(input.public_inputs);
+        assert_eq!(fe.len(), constants.num_fe_per_input);
         let zero = ctx.load_witness(F::ZERO);
-        fe.resize_with(MAX_NUM_FE_PER_INPUT_NO_HASH, || zero);
+        fe.resize_with(constants.max_num_fe_per_input_no_hash, || zero);
         let mut hasher = create_hasher();
         hasher.initialize_consts(ctx, &range.gate);
         let res = hasher.hash_fix_len_array(ctx, &range.gate, &fe);
         fe.push(res);
-        let unflattened = unflatten_groth16_input(fe.iter().map(|v| *v.value()).collect_vec());
-        let res = verify_groth16(unflattened, MAX_PUBLIC_INPUTS);
-        assert_eq!(fe.len(), MAX_NUM_FE_PER_INPUT);
+        let unflattened = unflatten_groth16_input(
+            fe.iter().map(|v| *v.value()).collect_vec(),
+            self.groth16_max_pi,
+        );
+        let res = verify_groth16(unflattened, constants.max_pi);
+        assert_eq!(fe.len(), constants.max_num_fe_per_input);
         let subqueries = fe
             .chunks(NUM_FE_PER_CHUNK)
             .map(|x| {
                 let x = x.to_vec();
                 let res = uint_to_bytes_be(ctx, range, &x[0], 32)[0];
-                (Groth16VerifierComponentInput { bytes: x.into() }, *res)
+                (
+                    Groth16VerifierComponentInput {
+                        packed_bytes: x.into(),
+                    },
+                    *res,
+                )
             })
             .collect_vec();
-        let outputs = vec![
-            H256::from_low_u64_be(2),
-            H256::from_low_u64_be(2),
-            H256::from_low_u64_be(res as u64),
-        ];
+        assert_eq!(subqueries.len(), constants.num_chunks);
+        let mut outputs = vec![H256::from_low_u64_be(2); constants.num_chunks - 1];
+        outputs.push(H256::from_low_u64_be(res as u64));
         let subquery_output_pairs = subqueries
             .into_iter()
             .zip(outputs)
             .map(|((subquery, res), output)| {
                 let hilo_output = self.handle_subquery(ctx, subquery, output);
-                dbg!(&hilo_output.lo().value());
-                dbg!(res.value());
                 ctx.constrain_equal(&hilo_output.lo(), &res);
                 hilo_output
             })

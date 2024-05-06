@@ -27,6 +27,7 @@ impl AxiomComputeFn for Groth16ClientInput {
             DEFAULT_JSON.to_string(),
             DEFAULT_PROOF_JSON.to_string(),
             DEFAULT_PUBLIC_INPUTS_JSON.to_string(),
+            4,
         );
         let assigned_input = assign_groth16_input(api, input);
         api.groth16_verify(assigned_input);
