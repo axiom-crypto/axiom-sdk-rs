@@ -116,6 +116,7 @@
 
 #![allow(incomplete_features)]
 #![feature(associated_type_defaults)]
+#![feature(async_fn_in_trait)]
 mod api;
 
 // pub(crate) mod utils;
@@ -134,13 +135,19 @@ pub mod axiom {
         compute::{AxiomCompute, AxiomComputeFn, AxiomComputeInput, AxiomResult},
     };
 }
-/// Contains a CLI for running any Axiom Compute function (any struct that implements the `AxiomComputeFn` trait)
-pub mod cmd;
 /// Contains the traits and types required to implement an Axiom Compute function (re-exported from the `axiom` module)
 pub(crate) mod compute;
+/// Contains a CLI for running any Axiom Compute function (any struct that implements the `AxiomComputeFn` trait)
+pub mod run;
+/// Contains a web server for running any Axiom Compute function (any struct that implements the `AxiomComputeFn` trait)
+pub mod server;
 /// Module with all subquery types and builders
 pub mod subquery;
 /// Re-export ethers-rs
 pub use ethers;
+/// Run either the proving/keygen CLI or the server from the same binary
+pub mod cli;
+/// Util to create a Docker image for a circuit
+pub mod dockerize;
 /// Module with utility functions for running the CLI
 pub mod utils;

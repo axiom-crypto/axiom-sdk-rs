@@ -9,3 +9,5 @@ Cargo.lock
 params
 .DS_Store
 debug/
+.cargo
+Dockerfile.cpu

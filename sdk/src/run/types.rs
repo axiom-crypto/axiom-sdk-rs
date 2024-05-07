@@ -13,7 +13,7 @@ pub enum SnarkCmd {
     /// Generate new proving & verifying keys
     Keygen,
     /// Generate an Axiom compute query
-    Run,
+    Prove,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -56,31 +56,34 @@ pub struct AxiomCircuitRunnerOptions {
     /// The JSON inputs to feed into your circuit
     pub input_path: Option<PathBuf>,
 
-    #[arg(short, long = "name", help = "Name of the output metadata file")]
+    #[arg(
+        short,
+        long = "name",
+        help = "Name of the output metadata file",
+        default_value = "circuit"
+    )]
     /// Name of the output metadata file
-    pub name: Option<String>,
+    pub name: String,
 
     #[arg(
         short,
         long = "data-path",
-        help = "For saving build artifacts (optional)"
+        help = "For saving build artifacts",
+        default_value = "data"
     )]
     /// The path to save build artifacts
-    pub data_path: Option<PathBuf>,
+    pub data_path: PathBuf,
 
     //Advanced options
     #[arg(
         short = 'c',
         long = "config",
-        help = "For specifying custom circuit parameters (optional)"
+        help = "For specifying custom circuit parameters"
     )]
     /// The path to a custom circuit configuration
     pub config: Option<PathBuf>,
 
-    #[arg(
-        long = "srs",
-        help = "For specifying custom KZG params directory (defaults to `params`)"
-    )]
+    #[arg(long = "srs", help = "For specifying custom KZG params directory")]
     /// The path to the KZG params folder
     pub srs: Option<PathBuf>,
 
