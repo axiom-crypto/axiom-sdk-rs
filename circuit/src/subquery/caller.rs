@@ -7,7 +7,7 @@ use axiom_codec::{
     HiLo,
 };
 use axiom_components::{
-    framework::utils::create_hasher,
+    framework::utils::compute_poseidon,
     groth16::{
         get_groth16_consts_from_max_pi, native::verify_groth16,
         types::Groth16VerifierComponentInput, unflatten_groth16_input, NUM_FE_PER_CHUNK,
@@ -187,9 +187,22 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
         assert_eq!(fe.len(), constants.num_fe_per_input);
         let zero = ctx.load_witness(F::ZERO);
         fe.resize_with(constants.max_num_fe_per_input_no_hash, || zero);
-        let mut hasher = create_hasher();
-        hasher.initialize_consts(ctx, &range.gate);
-        let res = hasher.hash_fix_len_array(ctx, &range.gate, &fe);
+        let to_hash = fe
+            .iter()
+            .map(|v| *v.value())
+            .collect::<Vec<_>>()
+            .chunks(NUM_FE_PER_CHUNK)
+            .collect::<Vec<_>>()
+            .iter()
+            .flat_map(|x| {
+                let mut x = x.to_vec();
+                let first_fe_bytes = x[0].to_bytes_le();
+                x[0] = F::from_bytes_le(&first_fe_bytes[..31]);
+                x
+            })
+            .collect::<Vec<_>>();
+        let hash = compute_poseidon(&to_hash);
+        let res = ctx.load_witness(hash);
         fe.push(res);
         let unflattened = unflatten_groth16_input(
             fe.iter().map(|v| *v.value()).collect_vec(),
