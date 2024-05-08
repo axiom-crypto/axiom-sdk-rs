@@ -1,11 +1,10 @@
 use std::fmt::Debug;
 
-use axiom_circuit::subquery::groth16::parse_groth16_input;
+use axiom_circuit::subquery::groth16::{assign_groth16_input, parse_groth16_input};
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
     cmd::run_cli,
     halo2_base::AssignedValue,
-    subquery::groth16::assign_groth16_input,
     Fr,
 };
 
@@ -29,7 +28,7 @@ impl AxiomComputeFn for Groth16ClientInput {
             DEFAULT_PUBLIC_INPUTS_JSON.to_string(),
             4,
         );
-        let assigned_input = assign_groth16_input(api, input);
+        let assigned_input = assign_groth16_input(api.ctx(), input);
         api.groth16_verify(assigned_input);
         vec![]
     }

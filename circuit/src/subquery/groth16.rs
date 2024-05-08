@@ -9,7 +9,11 @@ use axiom_components::{
     },
     utils::flatten::InputFlatten,
 };
-use axiom_query::axiom_eth::{halo2_base::AssignedValue, halo2curves::bn256::Fr, Field};
+use axiom_query::axiom_eth::{
+    halo2_base::{AssignedValue, Context},
+    halo2curves::bn256::Fr,
+    Field,
+};
 use ethers::{
     providers::{JsonRpcClient, Provider},
     types::H256,
@@ -93,4 +97,48 @@ pub fn parse_groth16_input(
 ) -> Groth16Input<Fr> {
     let input = parse_input(vk_string, pf_string, pub_string, max_pi);
     flatten_groth16_input_into_separated_chunks(input, max_pi)
+}
+
+pub fn assign_groth16_input(
+    ctx: &mut Context<Fr>,
+    input: Groth16Input<Fr>,
+) -> Groth16AssignedInput<Fr> {
+    let assigned_vkey = input
+        .vkey_bytes
+        .iter()
+        .map(|v| ctx.load_witness(*v))
+        .collect::<Vec<_>>();
+    let assigned_proof = input
+        .proof_bytes
+        .iter()
+        .map(|v| ctx.load_witness(*v))
+        .collect::<Vec<_>>();
+    let assigned_public_inputs = input
+        .public_inputs
+        .iter()
+        .map(|v| ctx.load_witness(*v))
+        .collect::<Vec<_>>();
+    Groth16AssignedInput {
+        vkey_bytes: assigned_vkey.try_into().unwrap(),
+        proof_bytes: assigned_proof.try_into().unwrap(),
+        public_inputs: assigned_public_inputs.try_into().unwrap(),
+    }
+}
+
+pub fn assign_groth16_input_with_known_vk(
+    ctx: &mut Context<Fr>,
+    assigned_vk: Vec<AssignedValue<Fr>>,
+    proof_bytes: Vec<Fr>,
+    pi: Vec<Fr>,
+) -> Groth16AssignedInput<Fr> {
+    let assigned_proof = proof_bytes
+        .iter()
+        .map(|v| ctx.load_witness(*v))
+        .collect::<Vec<_>>();
+    let assigned_public_inputs = pi.iter().map(|v| ctx.load_witness(*v)).collect::<Vec<_>>();
+    Groth16AssignedInput {
+        vkey_bytes: assigned_vk,
+        proof_bytes: assigned_proof.try_into().unwrap(),
+        public_inputs: assigned_public_inputs.try_into().unwrap(),
+    }
 }

@@ -15,8 +15,8 @@ use test_case::test_case;
 use super::{
     shared_tests::check_compute_proof_and_query_format,
     utils::{
-        all_subqueries_call, ecdsa_call, header_call, mapping_call, receipt_call, storage_call,
-        tx_call,
+        all_subqueries_call, ecdsa_call, groth16_call, header_call, mapping_call, receipt_call,
+        storage_call, tx_call,
     },
 };
 use crate::{
@@ -72,6 +72,7 @@ base_test_struct!(MappingTest, mapping_call);
 base_test_struct!(TxTest, tx_call);
 base_test_struct!(AllSubqueryTest, all_subqueries_call);
 base_test_struct!(EcdsaTest, ecdsa_call);
+base_test_struct!(Groth16Test, groth16_call);
 
 // #[test_case(AccountTest)]
 // #[test_case(HeaderTest)]
@@ -85,14 +86,18 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     mock_test::<S>(params);
 }
 
-#[test_case(AccountTest)]
-#[test_case(HeaderTest)]
-#[test_case(ReceiptTest)]
-#[test_case(StorageTest)]
-#[test_case(MappingTest)]
-#[test_case(TxTest)]
-#[test_case(EcdsaTest)]
-pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
+#[test_case(AccountTest, 1)]
+#[test_case(HeaderTest, 1)]
+#[test_case(ReceiptTest, 1)]
+#[test_case(StorageTest, 1)]
+#[test_case(MappingTest, 1)]
+#[test_case(TxTest, 1)]
+#[test_case(EcdsaTest, 1)]
+#[test_case(Groth16Test, 3)]
+pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(
+    _circuit: S,
+    num_subqueries: usize,
+) {
     let params = get_base_test_params();
     let client = get_provider();
     let runner = AxiomCircuit::<_, _, S>::new(client, params);
@@ -100,7 +105,14 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circui
     let num_user_output_fe = runner.output_num_instances();
     let subquery_fe = runner.subquery_num_instances();
     let results = runner.scaffold_output();
-    single_instance_test(instances, num_user_output_fe, subquery_fe, results, None);
+    single_instance_test(
+        instances,
+        num_user_output_fe,
+        subquery_fe,
+        results,
+        None,
+        Some(num_subqueries),
+    );
 }
 
 // #[test_case(AccountTest)]

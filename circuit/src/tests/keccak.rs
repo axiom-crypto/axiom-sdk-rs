@@ -26,7 +26,10 @@ use test_case::test_case;
 
 use super::{
     shared_tests::single_instance_test,
-    utils::{all_subqueries_call, ecdsa_call, mapping_call, receipt_call, storage_call, tx_call},
+    utils::{
+        all_subqueries_call, ecdsa_call, groth16_call, mapping_call, receipt_call, storage_call,
+        tx_call,
+    },
 };
 use crate::{
     aggregation::create_aggregation_circuit,
@@ -109,6 +112,7 @@ keccak_test_struct!(MappingTest, mapping_call);
 keccak_test_struct!(TxTest, tx_call);
 keccak_test_struct!(AllSubqueryTest, all_subqueries_call);
 keccak_test_struct!(ECDSATest, ecdsa_call);
+keccak_test_struct!(Groth16Test, groth16_call);
 
 // #[test_case(AccountTest)]
 // #[test_case(HeaderTest)]
@@ -129,14 +133,18 @@ pub fn mock<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     agg_circuit_mock(agg_circuit_params, snark);
 }
 
-#[test_case(AccountTest)]
-#[test_case(HeaderTest)]
-#[test_case(ReceiptTest)]
-#[test_case(StorageTest)]
-#[test_case(MappingTest)]
-#[test_case(TxTest)]
-#[test_case(ECDSATest)]
-pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
+#[test_case(AccountTest, 1)]
+#[test_case(HeaderTest, 1)]
+#[test_case(ReceiptTest, 1)]
+#[test_case(StorageTest, 1)]
+#[test_case(MappingTest, 1)]
+#[test_case(TxTest, 1)]
+#[test_case(ECDSATest, 1)]
+#[test_case(Groth16Test, 3)]
+pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(
+    _circuit: S,
+    num_subqueries: usize,
+) {
     let params = get_keccak_test_params();
     let agg_circuit_params = get_agg_test_params();
     let client = get_provider();
@@ -158,6 +166,7 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(_circui
         subquery_fe,
         results,
         Some(snark),
+        Some(num_subqueries),
     );
 }
 
