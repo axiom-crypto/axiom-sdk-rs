@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use axiom_circuit::subquery::groth16::{assign_groth16_input, parse_groth16_input};
 use axiom_sdk::{
     axiom::{AxiomAPI, AxiomComputeFn, AxiomComputeInput, AxiomResult},
-    cmd::run_cli,
+    axiom_main,
     halo2_base::AssignedValue,
     Fr,
 };
@@ -34,6 +34,4 @@ impl AxiomComputeFn for Groth16ClientInput {
     }
 }
 
-fn main() {
-    run_cli::<Groth16ClientInput>();
-}
+axiom_main!(Groth16ClientInput);
