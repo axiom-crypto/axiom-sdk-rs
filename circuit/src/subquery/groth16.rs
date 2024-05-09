@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axiom_codec::types::native::AnySubquery;
 pub use axiom_components::groth16::{
-    test::parse_input as parse_groth16_verifier_input, NUM_FE_PROOF,
+    native::verify_groth16, test::parse_input as parse_groth16_verifier_input, NUM_FE_PROOF,
 };
 use axiom_components::{
     groth16::{
