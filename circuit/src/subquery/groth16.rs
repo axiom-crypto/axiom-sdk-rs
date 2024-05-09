@@ -22,12 +22,15 @@ use ethers::{
 };
 
 use super::caller::FetchSubquery;
+
+#[derive(Clone, Debug)]
 pub struct Groth16Input<F: Field> {
     pub vkey_bytes: Vec<F>,
     pub proof_bytes: Vec<F>,
     pub public_inputs: Vec<F>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Groth16AssignedInput<F: Field> {
     pub vkey_bytes: Vec<AssignedValue<F>>,
     pub proof_bytes: Vec<AssignedValue<F>>,
