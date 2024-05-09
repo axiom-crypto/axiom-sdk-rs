@@ -1,6 +1,8 @@
 use anyhow::Result;
 use axiom_codec::types::native::AnySubquery;
-pub use axiom_components::groth16::NUM_FE_PROOF;
+pub use axiom_components::groth16::{
+    test::parse_input as parse_groth16_verifier_input, NUM_FE_PROOF,
+};
 use axiom_components::{
     groth16::{
         get_groth16_consts_from_max_pi,
