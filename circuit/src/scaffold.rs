@@ -52,6 +52,7 @@ use log::{info, warn};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
+    constants::DEFAULT_MAX_GROTH16_PI,
     input::flatten::InputFlatten,
     subquery::caller::SubqueryCaller,
     types::{AxiomCircuitConfig, AxiomCircuitParams, AxiomCircuitPinning, AxiomV2DataAndResults},
@@ -149,7 +150,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             keccak_call_collector: RefCell::new(Default::default()),
             max_user_outputs: USER_MAX_OUTPUTS,
             max_user_subqueries: USER_MAX_SUBQUERIES,
-            max_groth16_pi: 4,
+            max_groth16_pi: DEFAULT_MAX_GROTH16_PI,
         }
     }
 

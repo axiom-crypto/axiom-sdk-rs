@@ -146,7 +146,7 @@ impl<F: Field> From<AssignedSolidityNestedMappingSubquery<F>> for SolidityNested
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RawSubquery(pub(crate) AnySubquery);
 
 impl Serialize for RawSubquery {
@@ -168,7 +168,7 @@ impl Serialize for RawSubquery {
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Subquery {
     #[serde(rename = "subqueryData")]
     pub(crate) subquery_data: RawSubquery,

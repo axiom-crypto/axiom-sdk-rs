@@ -62,7 +62,7 @@ pub struct AggregationCircuitPinning<CoreParams> {
     pub params: AggregationCircuitParams,
 }
 
-#[derive(Debug, Serialize, Clone, Default)]
+#[derive(Debug, Serialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AxiomV2DataAndResults {
     pub data_query: Vec<Subquery>,

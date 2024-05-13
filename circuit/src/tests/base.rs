@@ -15,13 +15,14 @@ use test_case::test_case;
 use super::{
     shared_tests::check_compute_proof_and_query_format,
     utils::{
-        all_subqueries_call, ecdsa_call, groth16_call, header_call, mapping_call, receipt_call,
-        storage_call, tx_call,
+        all_subqueries_call, ecdsa_call, groth16_call, groth16_call_5_pi, header_call,
+        mapping_call, receipt_call, storage_call, tx_call,
     },
 };
 use crate::{
+    constants::DEFAULT_MAX_GROTH16_PI,
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
-    subquery::caller::SubqueryCaller,
+    subquery::{caller::SubqueryCaller, groth16::default_groth16_subquery_input},
     tests::{
         shared_tests::{mock_test, single_instance_test},
         utils::{account_call, EmptyCircuitInput},
@@ -64,6 +65,9 @@ fn get_base_test_params() -> AxiomCircuitParams {
     AxiomCircuitParams::Base(params)
 }
 
+const GROTH16_TEST_OUTPUT: &str = include_str!("./data/groth16_test_output.json");
+const GROTH16_TEST_INPUT: &str = include_str!("./data/groth16_test_input.json");
+
 base_test_struct!(AccountTest, account_call);
 base_test_struct!(HeaderTest, header_call);
 base_test_struct!(ReceiptTest, receipt_call);
@@ -73,6 +77,7 @@ base_test_struct!(TxTest, tx_call);
 base_test_struct!(AllSubqueryTest, all_subqueries_call);
 base_test_struct!(EcdsaTest, ecdsa_call);
 base_test_struct!(Groth16Test, groth16_call);
+base_test_struct!(Groth16Test5Pi, groth16_call_5_pi);
 
 // #[test_case(AccountTest)]
 // #[test_case(HeaderTest)]
@@ -98,9 +103,22 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(
     _circuit: S,
     num_subqueries: usize,
 ) {
+    test_single_subquery_instances_with_max_groth16_pi::<S>(
+        _circuit,
+        num_subqueries,
+        DEFAULT_MAX_GROTH16_PI,
+    );
+}
+
+#[test_case(Groth16Test5Pi, 4, 5)]
+pub fn test_single_subquery_instances_with_max_groth16_pi<S: AxiomCircuitScaffold<Http, Fr>>(
+    _circuit: S,
+    num_subqueries: usize,
+    max_groth16_pi: usize,
+) {
     let params = get_base_test_params();
     let client = get_provider();
-    let runner = AxiomCircuit::<_, _, S>::new(client, params);
+    let runner = AxiomCircuit::<_, _, S>::new(client, params).use_max_groth16_pi(max_groth16_pi);
     let instances = runner.instances();
     let num_user_output_fe = runner.output_num_instances();
     let subquery_fe = runner.subquery_num_instances();
@@ -125,4 +143,31 @@ pub fn test_single_subquery_instances<S: AxiomCircuitScaffold<Http, Fr>>(
 pub fn test_compute_query<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
     let params = get_base_test_params();
     check_compute_proof_and_query_format::<S>(params, false);
+}
+
+#[test_case(Groth16Test)]
+pub fn test_groth16_output<S: AxiomCircuitScaffold<Http, Fr>>(_circuit: S) {
+    let params = get_base_test_params();
+    let client = get_provider();
+    let runner = AxiomCircuit::<_, _, S>::new(client.clone(), params.clone());
+    let results = runner.scaffold_output();
+    let test_output: serde_json::Value = serde_json::from_str(GROTH16_TEST_OUTPUT)
+        .expect("Failed to parse Groth16 test input data as JSON");
+    let results_json: serde_json::Value =
+        serde_json::from_str(&serde_json::to_string(&results).unwrap())
+            .expect("Failed to parse Groth16 test input data as JSON");
+    assert_eq!(results_json, test_output);
+}
+
+#[test]
+pub fn test_groth16_input() {
+    let input = default_groth16_subquery_input(4);
+    let serialized_input =
+        serde_json::to_string(&input).expect("Failed to serialize Groth16 input");
+    let input: serde_json::Value = serde_json::from_str(&serialized_input)
+        .expect("Failed to parse Groth16 input data as JSON");
+    let groth16_test_input: serde_json::Value = serde_json::from_str(GROTH16_TEST_INPUT)
+        .expect("Failed to parse Groth16 test input data as JSON");
+
+    assert_eq!(input, groth16_test_input);
 }

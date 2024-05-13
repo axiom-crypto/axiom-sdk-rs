@@ -20,10 +20,11 @@ use ethers::{
     providers::{JsonRpcClient, Provider},
     types::H256,
 };
+use serde::Serialize;
 
 use super::caller::FetchSubquery;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Groth16Input<F: Field> {
     pub vkey_bytes: Vec<F>,
     pub proof_bytes: Vec<F>,

@@ -103,6 +103,7 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
             .collect_vec()
     }
 
+    // `handle_subquery` adds the subquery to the list of subqueries, to the circuit's public instances, and returns the HiLo result.
     fn handle_subquery<T: FetchSubquery<F>>(
         &mut self,
         ctx: &mut Context<F>,
@@ -134,6 +135,7 @@ impl<P: JsonRpcClient, F: Field> SubqueryCaller<P, F> {
         HiLo::from_hi_lo([hi, lo])
     }
 
+    // The `call` function fetches the subquery result and then calls `handle_subquery` to process the subquery + result.
     pub fn call<T: FetchSubquery<F>>(
         &mut self,
         ctx: &mut Context<F>,
