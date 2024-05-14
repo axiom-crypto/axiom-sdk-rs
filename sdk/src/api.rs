@@ -8,7 +8,7 @@ use axiom_circuit::{
         rlc::circuit::builder::RlcCircuitBuilder,
         utils::uint_to_bytes_be,
     },
-    subquery::{caller::SubqueryCaller, types::ECDSAComponentInput},
+    subquery::{caller::SubqueryCaller, groth16::Groth16AssignedInput, types::ECDSAComponentInput},
     utils::{from_hi_lo, to_hi_lo},
 };
 use ethers::providers::Http;
@@ -191,6 +191,14 @@ impl<'a> AxiomAPI<'a> {
         };
 
         subquery_caller.call(ctx, input)
+    }
+
+    pub fn groth16_verify(&mut self, input: Groth16AssignedInput<Fr>) -> HiLo<AssignedValue<Fr>> {
+        let ctx = self.builder.base.main(0);
+        let subquery_caller = self.subquery_caller.clone();
+        let mut subquery_caller = subquery_caller.lock().unwrap();
+
+        subquery_caller.groth16_verify(ctx, self.range, input)
     }
 
     pub fn keccak_fix_len(&mut self, bytes: Vec<AssignedValue<Fr>>) -> HiLo<AssignedValue<Fr>> {

@@ -52,6 +52,7 @@ use log::{info, warn};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
+    constants::DEFAULT_MAX_GROTH16_PI,
     input::flatten::InputFlatten,
     subquery::caller::SubqueryCaller,
     types::{AxiomCircuitConfig, AxiomCircuitParams, AxiomCircuitPinning, AxiomV2DataAndResults},
@@ -95,6 +96,7 @@ pub struct AxiomCircuit<F: Field, P: JsonRpcClient, A: AxiomCircuitScaffold<P, F
     keccak_rows_per_round: usize,
     pub(crate) max_user_outputs: usize,
     pub(crate) max_user_subqueries: usize,
+    pub(crate) max_groth16_pi: usize,
 }
 
 impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCircuit<F, P, A> {
@@ -148,6 +150,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             keccak_call_collector: RefCell::new(Default::default()),
             max_user_outputs: USER_MAX_OUTPUTS,
             max_user_subqueries: USER_MAX_SUBQUERIES,
+            max_groth16_pi: DEFAULT_MAX_GROTH16_PI,
         }
     }
 
@@ -184,6 +187,15 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
 
     pub fn use_break_points(mut self, break_points: RlcThreadBreakPoints) -> Self {
         self.set_break_points(break_points);
+        self
+    }
+
+    pub fn set_max_groth16_pi(&mut self, max_groth16_pi: usize) {
+        self.max_groth16_pi = max_groth16_pi;
+    }
+
+    pub fn use_max_groth16_pi(mut self, max_groth16_pi: usize) -> Self {
+        self.set_max_groth16_pi(max_groth16_pi);
         self
     }
 
@@ -249,6 +261,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
             break_points: self.break_points(),
             max_user_outputs: self.max_user_outputs,
             max_user_subqueries: self.max_user_subqueries,
+            max_groth16_pi: self.max_groth16_pi,
         }
     }
 
@@ -282,6 +295,7 @@ impl<F: Field, P: JsonRpcClient + Clone, A: AxiomCircuitScaffold<P, F>> AxiomCir
 
         let subquery_caller = Arc::new(Mutex::new(SubqueryCaller::new(
             self.provider.clone(),
+            self.max_groth16_pi,
             is_inputs,
         )));
         let mut callback = Vec::new();

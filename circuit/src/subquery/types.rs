@@ -146,7 +146,7 @@ impl<F: Field> From<AssignedSolidityNestedMappingSubquery<F>> for SolidityNested
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RawSubquery(pub(crate) AnySubquery);
 
 impl Serialize for RawSubquery {
@@ -163,11 +163,12 @@ impl Serialize for RawSubquery {
             AnySubquery::Receipt(ref inner) => inner.serialize(serializer),
             AnySubquery::SolidityNestedMapping(ref inner) => inner.serialize(serializer),
             AnySubquery::ECDSA(ref inner) => inner.serialize(serializer),
+            AnySubquery::Groth16(ref inner) => inner.serialize(serializer),
         }
     }
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Subquery {
     #[serde(rename = "subqueryData")]
     pub(crate) subquery_data: RawSubquery,

@@ -21,6 +21,7 @@ use crate::{
     subquery::{
         account::AccountField,
         caller::SubqueryCaller,
+        groth16::{assign_groth16_input, default_groth16_subquery_input},
         header::HeaderField,
         receipt::ReceiptField,
         types::{
@@ -188,6 +189,36 @@ pub fn ecdsa_call<P: JsonRpcClient>(
     val
 }
 
+pub fn groth16_call<P: JsonRpcClient>(
+    builder: &mut RlcCircuitBuilder<Fr>,
+    subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
+) -> HiLo<AssignedValue<Fr>> {
+    let input = default_groth16_subquery_input(4);
+    let assigned_input = assign_groth16_input(builder.base.main(0), input);
+    let range_chip = builder.range_chip();
+    let val = subquery_caller.lock().unwrap().groth16_verify(
+        builder.base.main(0),
+        &range_chip,
+        assigned_input,
+    );
+    val
+}
+
+pub fn groth16_call_5_pi<P: JsonRpcClient>(
+    builder: &mut RlcCircuitBuilder<Fr>,
+    subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
+) -> HiLo<AssignedValue<Fr>> {
+    let input = default_groth16_subquery_input(5);
+    let assigned_input = assign_groth16_input(builder.base.main(0), input);
+    let range_chip = builder.range_chip();
+    let val = subquery_caller.lock().unwrap().groth16_verify(
+        builder.base.main(0),
+        &range_chip,
+        assigned_input,
+    );
+    val
+}
+
 pub fn all_subqueries_call<P: JsonRpcClient>(
     builder: &mut RlcCircuitBuilder<Fr>,
     subquery_caller: Arc<Mutex<SubqueryCaller<P, Fr>>>,
@@ -200,6 +231,7 @@ pub fn all_subqueries_call<P: JsonRpcClient>(
         storage_call(builder, subquery_caller.clone()),
         tx_call(builder, subquery_caller.clone()),
         ecdsa_call(builder, subquery_caller.clone()),
+        groth16_call(builder, subquery_caller.clone()),
     ];
     vals
 }

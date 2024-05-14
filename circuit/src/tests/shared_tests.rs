@@ -31,7 +31,9 @@ pub fn single_instance_test(
     num_subquery_fe: usize,
     results: AxiomV2DataAndResults,
     inner_snark: Option<Snark>,
+    num_subqueries: Option<usize>,
 ) {
+    let num_subqueries = num_subqueries.unwrap_or(1);
     //check that there's only one instance column
     assert_eq!(instances.len(), 1);
     let mut instances = instances.get(0).unwrap().clone();
@@ -55,8 +57,8 @@ pub fn single_instance_test(
         &instances[0..num_user_output_fe],
         &vec![Fr::from(0); num_user_output_fe]
     );
-    //check that there's only one subquery
-    assert_eq!(results.data_query.len(), 1);
+    //check that there's only `num_subqueries` subqueries (defaults to 1)
+    assert_eq!(results.data_query.len(), num_subqueries);
     let subquery = FieldSubqueryResult::<Fr>::from(results.data_query.get(0).unwrap().clone());
     //check the instances that correspond to single data subquery
     assert_eq!(
@@ -65,8 +67,8 @@ pub fn single_instance_test(
     );
     //check that remaining instances are zero
     assert_eq!(
-        &instances[num_user_output_fe + SUBQUERY_RESULT_LEN..],
-        &vec![Fr::from(0); num_subquery_fe - SUBQUERY_RESULT_LEN]
+        &instances[num_user_output_fe + SUBQUERY_RESULT_LEN * num_subqueries..],
+        &vec![Fr::from(0); num_subquery_fe - SUBQUERY_RESULT_LEN * num_subqueries]
     );
 }
 

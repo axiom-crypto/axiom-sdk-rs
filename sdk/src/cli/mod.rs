@@ -89,6 +89,7 @@ pub fn run_cli_on_scaffold<
 
     let mut max_user_outputs = USER_MAX_OUTPUTS;
     let mut max_subqueries = USER_MAX_SUBQUERIES;
+    let mut max_groth16_pi = 4;
     let mut core_params = A::CoreParams::default();
 
     let mut agg_circuit_params: Option<AggregationCircuitParams> = None;
@@ -100,6 +101,7 @@ pub fn run_cli_on_scaffold<
 
         max_user_outputs = raw_params.max_outputs.unwrap_or(USER_MAX_OUTPUTS);
         max_subqueries = raw_params.max_subqueries.unwrap_or(USER_MAX_SUBQUERIES);
+        max_groth16_pi = raw_params.max_groth16_pi.unwrap_or(4);
         core_params = raw_params
             .core_params
             .unwrap_or_else(A::CoreParams::default);
@@ -154,6 +156,7 @@ pub fn run_cli_on_scaffold<
         .use_core_params(core_params)
         .use_max_user_outputs(max_user_outputs)
         .use_max_user_subqueries(max_subqueries)
+        .use_max_groth16_pi(max_groth16_pi)
         .use_inputs(input.clone());
 
     match cli.command {

@@ -52,6 +52,7 @@ pub struct AxiomCircuitPinning<CoreParams> {
     pub break_points: RlcThreadBreakPoints,
     pub max_user_outputs: usize,
     pub max_user_subqueries: usize,
+    pub max_groth16_pi: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,7 +62,7 @@ pub struct AggregationCircuitPinning<CoreParams> {
     pub params: AggregationCircuitParams,
 }
 
-#[derive(Debug, Serialize, Clone, Default)]
+#[derive(Debug, Serialize, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AxiomV2DataAndResults {
     pub data_query: Vec<Subquery>,
