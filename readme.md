@@ -13,7 +13,19 @@ This repository is split into 3 components:
 To install our Rust circuit SDK into a Cargo project, run:
 
 ```bash
+# install sdk-rs
 cargo add axiom-sdk
+
+# install dependencies
+cargo add axiom-circuit
+cargo add serde
+cargo add anyhow
+```
+
+We also rely on a nightly build of Rust, which you can configure using:
+
+```bash
+echo "nightly-2024-01-01" >> rust-toolchain
 ```
 
 ### Overview
