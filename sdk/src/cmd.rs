@@ -39,6 +39,8 @@ pub enum SnarkCmd {
     Prove,
     /// Generate an Axiom compute query
     Run,
+    /// Perform witness generation only, for axiom-std
+    WitnessGen,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -60,6 +62,7 @@ impl std::fmt::Display for SnarkCmd {
             Self::Keygen => write!(f, "keygen"),
             Self::Prove => write!(f, "prove"),
             Self::Run => write!(f, "run"),
+            Self::WitnessGen => write!(f, "witness-gen"),
         }
     }
 }
@@ -109,7 +112,7 @@ where
 {
     let cli = Cli::parse();
     match cli.command {
-        SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::Run => {
+        SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::Run | SnarkCmd::WitnessGen => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
             }
@@ -261,6 +264,19 @@ where
             let f = File::create(&output_json_path)
                 .unwrap_or_else(|_| panic!("Could not create file at {output_json_path:?}"));
             serde_json::to_writer_pretty(&f, &output.data).expect("Writing output should not fail");
+        }
+        SnarkCmd::WitnessGen => {
+            let circuit = AxiomCompute::<A>::new()
+                .use_params(params.clone())
+                .use_provider(provider.clone());
+            let (_, _, pinning) = circuit.keygen();
+            let results = circuit.use_pinning(pinning).use_inputs(input).witness_gen();
+
+            let output_path = data_path.join(PathBuf::from("compute.json"));
+            let f = File::create(&output_path)
+                .unwrap_or_else(|_| panic!("Could not create file at {output_path:?}"));
+            serde_json::to_writer_pretty(f, &results.compute_results)
+                .expect("Writing compute results should not fail");
         }
     }
 }

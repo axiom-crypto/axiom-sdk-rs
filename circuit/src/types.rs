@@ -44,7 +44,7 @@ pub struct AxiomCircuitPinning {
 #[serde(rename_all = "camelCase")]
 pub struct AxiomV2DataAndResults {
     pub(crate) data_query: Vec<Subquery>,
-    pub(crate) compute_results: Vec<H256>,
+    pub compute_results: Vec<H256>,
 }
 
 #[derive(Debug, Serialize, Clone)]

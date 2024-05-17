@@ -16,7 +16,7 @@ use ethers::{
 
 use crate::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
-    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
+    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput, AxiomV2DataAndResults},
     utils::build_axiom_v2_compute_query,
 };
 
@@ -112,5 +112,15 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
         data: output,
         snark,
     };
+    output
+}
+
+pub fn witness_gen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
+    provider: Provider<P>,
+    pinning: AxiomCircuitPinning,
+    inputs: Option<S::InputValue>,
+) -> AxiomV2DataAndResults {
+    let runner = AxiomCircuit::<_, _, S>::prover(provider, pinning.clone()).use_inputs(inputs);
+    let output = runner.scaffold_output();
     output
 }

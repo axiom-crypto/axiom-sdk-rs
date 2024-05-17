@@ -13,10 +13,10 @@ use axiom_circuit::{
         utils::hilo::HiLo,
     },
     input::flatten::InputFlatten,
-    run::inner::{keygen, mock, prove, run},
+    run::inner::{keygen, mock, prove, run, witness_gen},
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     subquery::caller::SubqueryCaller,
-    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
+    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput, AxiomV2DataAndResults},
     utils::to_hi_lo,
 };
 use ethers::providers::{Http, Provider};
@@ -225,6 +225,14 @@ where
         let provider = self.provider.clone().unwrap();
         let converted_input = self.input.clone().map(|input| input.into());
         run::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input, pk)
+    }
+
+    /// Perform witness gen only
+    pub fn witness_gen(&self) -> AxiomV2DataAndResults {
+        self.check_all_set();
+        let provider = self.provider.clone().unwrap();
+        let converted_input = self.input.clone().map(|input| input.into());
+        witness_gen::<Http, Self>(provider, self.pinning.clone().unwrap(), converted_input)
     }
 
     /// Returns an [AxiomCircuit] instance, for functions that expect the halo2 circuit trait
