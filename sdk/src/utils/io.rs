@@ -17,7 +17,7 @@ use axiom_circuit::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     types::{
         AggregationCircuitPinning, AxiomCircuitPinning, AxiomClientCircuitMetadata,
-        AxiomV2CircuitOutput,
+        AxiomV2CircuitOutput, AxiomV2DataAndResults
     },
 };
 use ethers::providers::Http;
@@ -204,4 +204,14 @@ pub fn write_output(
     let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
     serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
+}
+
+pub fn write_witness_gen_output(
+    output: AxiomV2DataAndResults,
+    json_output_path: PathBuf,
+) {
+    info!("Writing JSON output to {:?}", &json_output_path);
+    let f = File::create(&json_output_path)
+        .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
+    serde_json::to_writer_pretty(&f, &output.compute_results).expect("Writing output should not fail");
 }
