@@ -14,7 +14,7 @@ use log::info;
 
 use crate::{
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
-    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput},
+    types::{AxiomCircuitParams, AxiomCircuitPinning, AxiomV2CircuitOutput, AxiomV2DataAndResults},
     utils::{
         build_axiom_v2_compute_query, check_compute_proof_format, check_compute_query_format,
         get_query_schema_from_compute_query, verify_snark, DK,
@@ -133,4 +133,11 @@ pub fn run<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
     }
 
     circuit_output
+}
+
+pub fn witness_gen<P: JsonRpcClient + Clone, S: AxiomCircuitScaffold<P, Fr>>(
+    circuit: &mut AxiomCircuit<Fr, P, S>,
+) -> AxiomV2DataAndResults {
+    let output = circuit.scaffold_output();
+    output
 }

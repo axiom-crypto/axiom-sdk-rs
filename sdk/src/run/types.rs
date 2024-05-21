@@ -14,6 +14,8 @@ pub enum SnarkCmd {
     Keygen,
     /// Generate an Axiom compute query
     Prove,
+    /// Perform witness generation only, for axiom-std
+    WitnessGen,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

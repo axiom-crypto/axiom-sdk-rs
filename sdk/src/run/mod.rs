@@ -16,7 +16,7 @@ use axiom_circuit::{
     },
     run::{
         aggregation::{agg_circuit_keygen, agg_circuit_run},
-        inner::{keygen, mock, run},
+        inner::{keygen, mock, run, witness_gen},
     },
     scaffold::{AxiomCircuit, AxiomCircuitScaffold},
     types::AxiomCircuitParams,
@@ -34,7 +34,7 @@ use crate::{
     utils::{
         io::{
             read_agg_pk_and_pinning, read_metadata, read_pk_and_pinning, write_agg_keygen_output,
-            write_keygen_output, write_metadata, write_output,
+            write_keygen_output, write_metadata, write_output, write_witness_gen_output,
         },
         read_srs_from_dir_or_install,
     },
@@ -49,7 +49,7 @@ pub fn run_cli_on_scaffold<
     cli: AxiomCircuitRunnerOptions,
 ) {
     match cli.command {
-        SnarkCmd::Mock | SnarkCmd::Prove => {
+        SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::WitnessGen => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
             }
@@ -233,6 +233,10 @@ pub fn run_cli_on_scaffold<
                 cli.data_path.join(PathBuf::from("output.snark")),
                 cli.data_path.join(PathBuf::from("output.json")),
             );
+        }
+        SnarkCmd::WitnessGen => {
+            let output = witness_gen(&mut runner);
+            write_witness_gen_output(output, cli.data_path.join(PathBuf::from("compute.json")));
         }
     }
 }
