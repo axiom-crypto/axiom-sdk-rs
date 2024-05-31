@@ -24,6 +24,14 @@ use ethers::providers::Http;
 use log::info;
 use serde::{de::DeserializeOwned, Serialize};
 
+pub fn output_to_writer<W: std::io::Write, T: ?Sized + Serialize>(to_stdout: bool, writer: W, output: &T) {
+    if to_stdout {
+        serde_json::to_writer_pretty(&std::io::stdout(), output).expect("Writing output should not fail");
+    } else {
+        serde_json::to_writer_pretty(writer, output).expect("Writing output should not fail");
+    }
+}
+
 pub fn write_keygen_output<CoreParams: Serialize>(
     vk: &VerifyingKey<G1Affine>,
     pk: &ProvingKey<G1Affine>,
@@ -192,6 +200,7 @@ pub fn write_output(
     output: AxiomV2CircuitOutput,
     snark_output_path: PathBuf,
     json_output_path: PathBuf,
+    to_stdout: bool,
 ) {
     info!("Writing SNARK to {:?}", &snark_output_path);
     let f = File::create(&snark_output_path)
@@ -203,15 +212,23 @@ pub fn write_output(
     info!("Writing JSON output to {:?}", &json_output_path);
     let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
-    serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
+
+    output_to_writer(to_stdout, &f, &output);
+    // if to_stdout {
+    //     serde_json::to_writer_pretty(&std::io::stdout(), &output).expect("Writing output should not fail");
+    // } else {
+    //     serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
+    // }
 }
 
 pub fn write_witness_gen_output(
     output: AxiomV2DataAndResults,
     json_output_path: PathBuf,
+    to_stdout: bool,
 ) {
     info!("Writing JSON output to {:?}", &json_output_path);
     let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
-    serde_json::to_writer_pretty(&f, &output.compute_results).expect("Writing output should not fail");
+    output_to_writer(to_stdout, &f, &output.compute_results);
+    // serde_json::to_writer_pretty(&f, &output.compute_results).expect("Writing output should not fail");
 }

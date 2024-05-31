@@ -232,11 +232,16 @@ pub fn run_cli_on_scaffold<
                 output,
                 cli.data_path.join(PathBuf::from("output.snark")),
                 cli.data_path.join(PathBuf::from("output.json")),
+                cli.to_stdout,
             );
         }
         SnarkCmd::WitnessGen => {
             let output = witness_gen(&mut runner);
-            write_witness_gen_output(output, cli.data_path.join(PathBuf::from("compute.json")));
+            write_witness_gen_output(
+                output,
+                cli.data_path.join(PathBuf::from("compute.json")),
+                cli.to_stdout,
+            );
         }
     }
 }

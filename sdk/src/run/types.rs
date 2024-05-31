@@ -104,4 +104,13 @@ pub struct AxiomCircuitRunnerOptions {
     )]
     /// Whether to auto calculate the aggregation params
     pub should_auto_config_aggregation_circuit: bool,
+
+    #[arg(
+        short = 's',
+        long = "to-stdout",
+        help = "Whether to output to stdout (defaults to false: output to json)",
+        action
+    )]
+    /// Whether to output to stdout (true) or json file (false)
+    pub to_stdout: bool,
 }
