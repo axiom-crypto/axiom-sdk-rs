@@ -163,7 +163,7 @@ pub fn run_cli_on_scaffold<
         SnarkCmd::Keygen => {
             let srs = read_srs_from_dir_or_install(&srs_path, runner.k() as u32);
             let (vk, pk, pinning) = keygen(&mut runner, &srs);
-            write_keygen_output(&vk, &pk, &pinning, cli.data_path.clone());
+            write_keygen_output(&vk, &pk, &pinning, cli.data_path.clone(), cli.to_stdout);
             let metadata = if should_aggregate {
                 if input.is_none() {
                     panic!("The `input` argument is required for keygen with aggregation.");
@@ -191,7 +191,7 @@ pub fn run_cli_on_scaffold<
                 );
                 let agg_params = agg_keygen_output.2.params;
                 let agg_vk = agg_keygen_output.0.clone();
-                write_agg_keygen_output(agg_keygen_output, cli.data_path.clone());
+                write_agg_keygen_output(agg_keygen_output, cli.data_path.clone(), cli.to_stdout);
                 get_agg_axiom_client_circuit_metadata(
                     &runner,
                     &agg_kzg_params,
@@ -206,6 +206,7 @@ pub fn run_cli_on_scaffold<
                 metadata,
                 cli.data_path
                     .join(PathBuf::from(format!("{}.json", cli.name))),
+                cli.to_stdout,
             );
         }
         SnarkCmd::Prove => {
