@@ -24,20 +24,11 @@ use ethers::providers::Http;
 use log::info;
 use serde::{de::DeserializeOwned, Serialize};
 
-pub fn output_to_writer<W: std::io::Write, T: ?Sized + Serialize>(to_stdout: bool, writer: W, output: &T) {
-    if to_stdout {
-        serde_json::to_writer_pretty(&std::io::stdout(), output).expect("Writing output should not fail");
-    } else {
-        serde_json::to_writer_pretty(writer, output).expect("Writing output should not fail");
-    }
-}
-
 pub fn write_keygen_output<CoreParams: Serialize>(
     vk: &VerifyingKey<G1Affine>,
     pk: &ProvingKey<G1Affine>,
     pinning: &AxiomCircuitPinning<CoreParams>,
     data_path: PathBuf,
-    to_stdout: bool,
 ) -> String {
     let circuit_id = get_circuit_id(vk);
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
@@ -45,7 +36,7 @@ pub fn write_keygen_output<CoreParams: Serialize>(
     let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     write_vk(vk, vk_path);
     write_pk(pk, pk_path);
-    write_pinning(pinning, pinning_path, to_stdout);
+    write_pinning(pinning, pinning_path);
     circuit_id
 }
 
@@ -71,7 +62,6 @@ pub fn write_agg_keygen_output<CoreParams: Serialize>(
         AggregationCircuitPinning<CoreParams>,
     ),
     data_path: PathBuf,
-    to_stdout: bool,
 ) -> String {
     let circuit_id = get_circuit_id(&keygen_output.0);
     let pk_path = data_path.join(format!("{circuit_id}.pk"));
@@ -79,7 +69,7 @@ pub fn write_agg_keygen_output<CoreParams: Serialize>(
     let pinning_path = data_path.join(format!("{circuit_id}.pinning"));
     write_vk(&keygen_output.0, vk_path);
     write_pk(&keygen_output.1, pk_path);
-    write_agg_pinning(&keygen_output.2, pinning_path, to_stdout);
+    write_agg_pinning(&keygen_output.2, pinning_path);
     circuit_id
 }
 
@@ -118,13 +108,13 @@ pub fn write_pk(pk: &ProvingKey<G1Affine>, pk_path: PathBuf) {
     info!("Wrote proving key to {:?}", pk_path);
 }
 
-pub fn write_metadata(metadata: AxiomClientCircuitMetadata, metadata_path: PathBuf, to_stdout: bool) {
+pub fn write_metadata(metadata: AxiomClientCircuitMetadata, metadata_path: PathBuf) {
     if metadata_path.exists() {
         fs::remove_file(&metadata_path).unwrap();
     }
     let f = File::create(&metadata_path)
         .unwrap_or_else(|_| panic!("Could not create file at {metadata_path:?}"));
-    output_to_writer(to_stdout, &f, &metadata);
+    serde_json::to_writer_pretty(&f, &metadata).expect("writing metadata should not fail");
     info!("Wrote circuit metadata to {:?}", metadata_path);
 }
 
@@ -159,28 +149,26 @@ pub fn read_agg_pk(pk_path: PathBuf, params: AggregationCircuitParams) -> Provin
 pub fn write_pinning<CoreParams: Serialize>(
     pinning: &AxiomCircuitPinning<CoreParams>,
     pinning_path: PathBuf,
-    to_stdout: bool,
 ) {
     if pinning_path.exists() {
         fs::remove_file(&pinning_path).unwrap();
     }
     let f = File::create(&pinning_path)
         .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
-    output_to_writer(to_stdout, &f, &pinning);
+    serde_json::to_writer_pretty(&f, &pinning).expect("writing circuit pinning should not fail");
     info!("Wrote circuit pinning to {:?}", pinning_path);
 }
 
 pub fn write_agg_pinning<CoreParams: Serialize>(
     pinning: &AggregationCircuitPinning<CoreParams>,
     pinning_path: PathBuf,
-    to_stdout: bool,
 ) {
     if pinning_path.exists() {
         fs::remove_file(&pinning_path).unwrap();
     }
     let f = File::create(&pinning_path)
         .unwrap_or_else(|_| panic!("Could not create file at {pinning_path:?}"));
-    output_to_writer(to_stdout, &f, &pinning);
+    serde_json::to_writer_pretty(&f, &pinning).expect("writing circuit pinning should not fail");
     info!("Wrote circuit pinning to {:?}", pinning_path);
 }
 
@@ -204,7 +192,6 @@ pub fn write_output(
     output: AxiomV2CircuitOutput,
     snark_output_path: PathBuf,
     json_output_path: PathBuf,
-    to_stdout: bool,
 ) {
     info!("Writing SNARK to {:?}", &snark_output_path);
     let f = File::create(&snark_output_path)
@@ -217,7 +204,7 @@ pub fn write_output(
     let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
 
-    output_to_writer(to_stdout, &f, &output);
+        serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
 }
 
 pub fn write_witness_gen_output(
@@ -225,8 +212,12 @@ pub fn write_witness_gen_output(
     json_output_path: PathBuf,
     to_stdout: bool,
 ) {
-    info!("Writing JSON output to {:?}", &json_output_path);
-    let f = File::create(&json_output_path)
+    if to_stdout {
+        serde_json::to_writer_pretty(&std::io::stdout(), &output.compute_results).expect("Writing output should not fail");
+    } else {
+        info!("Writing JSON output to {:?}", &json_output_path);
+        let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
-    output_to_writer(to_stdout, &f, &output.compute_results);
+        serde_json::to_writer_pretty(&f, &output.compute_results).expect("Writing output should not fail");
+    }
 }

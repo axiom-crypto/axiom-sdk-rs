@@ -49,6 +49,14 @@ pub fn run_cli_on_scaffold<
     cli: AxiomCircuitRunnerOptions,
 ) {
     match cli.command {
+        SnarkCmd::WitnessGen => {}
+        _ => {
+            if cli.to_stdout {
+                panic!("The `to_stdout` argument is only valid for the `witness-gen` command.");
+            }
+        }
+    }
+    match cli.command {
         SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::WitnessGen => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
@@ -163,7 +171,7 @@ pub fn run_cli_on_scaffold<
         SnarkCmd::Keygen => {
             let srs = read_srs_from_dir_or_install(&srs_path, runner.k() as u32);
             let (vk, pk, pinning) = keygen(&mut runner, &srs);
-            write_keygen_output(&vk, &pk, &pinning, cli.data_path.clone(), cli.to_stdout);
+            write_keygen_output(&vk, &pk, &pinning, cli.data_path.clone());
             let metadata = if should_aggregate {
                 if input.is_none() {
                     panic!("The `input` argument is required for keygen with aggregation.");
@@ -191,7 +199,7 @@ pub fn run_cli_on_scaffold<
                 );
                 let agg_params = agg_keygen_output.2.params;
                 let agg_vk = agg_keygen_output.0.clone();
-                write_agg_keygen_output(agg_keygen_output, cli.data_path.clone(), cli.to_stdout);
+                write_agg_keygen_output(agg_keygen_output, cli.data_path.clone());
                 get_agg_axiom_client_circuit_metadata(
                     &runner,
                     &agg_kzg_params,
@@ -206,7 +214,6 @@ pub fn run_cli_on_scaffold<
                 metadata,
                 cli.data_path
                     .join(PathBuf::from(format!("{}.json", cli.name))),
-                cli.to_stdout,
             );
         }
         SnarkCmd::Prove => {
@@ -233,7 +240,6 @@ pub fn run_cli_on_scaffold<
                 output,
                 cli.data_path.join(PathBuf::from("output.snark")),
                 cli.data_path.join(PathBuf::from("output.json")),
-                cli.to_stdout,
             );
         }
         SnarkCmd::WitnessGen => {
