@@ -49,6 +49,14 @@ pub fn run_cli_on_scaffold<
     cli: AxiomCircuitRunnerOptions,
 ) {
     match cli.command {
+        SnarkCmd::WitnessGen => {}
+        _ => {
+            if cli.to_stdout {
+                panic!("The `to_stdout` argument is only valid for the `witness-gen` command.");
+            }
+        }
+    }
+    match cli.command {
         SnarkCmd::Mock | SnarkCmd::Prove | SnarkCmd::WitnessGen => {
             if cli.input_path.is_none() {
                 panic!("The `input_path` argument is required for the selected command.");
@@ -236,7 +244,11 @@ pub fn run_cli_on_scaffold<
         }
         SnarkCmd::WitnessGen => {
             let output = witness_gen(&mut runner);
-            write_witness_gen_output(output, cli.data_path.join(PathBuf::from("compute.json")));
+            write_witness_gen_output(
+                output,
+                cli.data_path.join(PathBuf::from("compute.json")),
+                cli.to_stdout,
+            );
         }
     }
 }

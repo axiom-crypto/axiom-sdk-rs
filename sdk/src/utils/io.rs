@@ -203,15 +203,21 @@ pub fn write_output(
     info!("Writing JSON output to {:?}", &json_output_path);
     let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
-    serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
+
+        serde_json::to_writer_pretty(&f, &output).expect("Writing output should not fail");
 }
 
 pub fn write_witness_gen_output(
     output: AxiomV2DataAndResults,
     json_output_path: PathBuf,
+    to_stdout: bool,
 ) {
-    info!("Writing JSON output to {:?}", &json_output_path);
-    let f = File::create(&json_output_path)
+    if to_stdout {
+        serde_json::to_writer_pretty(&std::io::stdout(), &output.compute_results).expect("Writing output should not fail");
+    } else {
+        info!("Writing JSON output to {:?}", &json_output_path);
+        let f = File::create(&json_output_path)
         .unwrap_or_else(|_| panic!("Could not create file at {json_output_path:?}"));
-    serde_json::to_writer_pretty(&f, &output.compute_results).expect("Writing output should not fail");
+        serde_json::to_writer_pretty(&f, &output.compute_results).expect("Writing output should not fail");
+    }
 }
