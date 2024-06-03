@@ -92,7 +92,7 @@ pub struct AxiomCircuitRunnerOptions {
 
     #[arg(
         long = "aggregate",
-        help = "Whether to aggregate the output (defaults to false)",
+        help = "Whether to aggregate the output [default: false]",
         action
     )]
     /// Whether to aggregate the output
@@ -100,9 +100,18 @@ pub struct AxiomCircuitRunnerOptions {
 
     #[arg(
         long = "auto-config-aggregation",
-        help = "Whether to aggregate the output (defaults to false)",
+        help = "Whether to aggregate the output [default: false]",
         action
     )]
     /// Whether to auto calculate the aggregation params
     pub should_auto_config_aggregation_circuit: bool,
+
+    #[arg(
+        short = 's',
+        long = "to-stdout",
+        help = "(witness-gen only) Output to stdout (true) or json (false) [default: false]",
+        action
+    )]
+    /// Whether to output to stdout (true) or json file (false)
+    pub to_stdout: bool,
 }
