@@ -18,9 +18,10 @@ Options:
   -n, --name <NAME>              Name of the output metadata file [default: circuit]
   -d, --data-path <DATA_PATH>    For saving build artifacts [default: data]
   -c, --config <CONFIG>          For specifying custom circuit parameters
-      --srs <SRS>                For specifying custom KZG params directory [default: params]
-      --aggregate                Whether to aggregate the output (defaults to false)
-      --auto-config-aggregation  Whether to aggregate the output (defaults to false)
+      --srs <SRS>                For specifying custom KZG params directory
+      --aggregate                Whether to aggregate the output [default: false]
+      --auto-config-aggregation  Whether to aggregate the output [default: false]
+  -s, --to-stdout                (witness-gen only) Output to stdout (true) or json (false) [default: false]
   -h, --help                     Print help
   -V, --version                  Print version
 ```
