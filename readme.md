@@ -135,4 +135,4 @@ cargo run --example account_age -- --input data/account_age_input.json -k 12 -p 
 
 where `PROVIDER_URI` is a JSON-RPC URI, and `CMD` is `mock`, `prove`, `keygen`, or `run`.
 
-Note that for the above example to work with the provied `data/account_age_input.json`, the `PROVIDER_URI` needs to be a JSON-RPC URI for Sepolia Testnet.
+Note that for the above example to work with the provided `data/account_age_input.json`, the `PROVIDER_URI` needs to be a JSON-RPC URI for Sepolia Testnet.
